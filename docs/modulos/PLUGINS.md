@@ -309,6 +309,15 @@ deve ser combinado pelo coordenador com o usuário; não usar dados pessoais.
 
 ## Pendências
 
+### Lote 0.5.8
+
+- Ao abrir Preferências → Plugins, o aplicativo consulta o catálogo assinado e oferece atualização quando a versão publicada é superior à instalada. A instalação depende do clique do usuário; falhas de rede preservam os plugins locais.
+- Downloads usam o fetch do Node no processo principal: o fetch do Electron cancela redirects manuais. Cada destino continua limitado aos hosts GitHub autorizados, com limite de bytes, timeout, assinatura e hashes.
+- Financeiro e MEI 1.0.1 foram gerados para hosts a partir de 0.5.8, com catálogo de sequência 2 apontando para v0.5.8. Os arquivos ainda são locais até a publicação autorizada.
+- Removido o desvio que carregava fontes locais dos plugins nas prévias. Preview e produção usam os pacotes assinados e o protocolo `organon-plugin`.
+- Validação enviada pelo usuário em 03/11/2026: build, 27 testes focados e `tests/modules-ui.cjs` aprovados, incluindo consulta automática, carregamento real dos pacotes assinados e preservação dos dados sintéticos. A rede desse teste é simulada e não comprova o servidor Supabase ou o download público.
+- O usuário também aprovou `tests/modules-ui.cjs --packaged` no executável 0.5.8: instalação, abertura e remoção dos pacotes assinados, JavaScript/CSS pelo protocolo real e preservação dos dados, em perfil temporário.
+
 Atualização da coordenação: main/preload/CSP/navegação/Preferências conectados, chave pública fixada e chave privada de assinatura mantida fora do repositório. Contrato global registrado; pacotes 1.0.0 e catálogo assinados gerados separadamente. O publicador agora verifica assinatura, hashes/ABI/compatibilidade e inclui os três assets antes de tornar uma Release pública. Abertura/instalação/remoção dos plugins via protocolo real aprovada pelo usuário em `tests/modules-ui.cjs`; servidor também aprovado em `modules-live.cjs`. O modo `--packaged` também foi aprovado pelo usuário: instalação/abertura/remoção dos pacotes assinados no executável real, JavaScript/CSS pelo protocolo e preservação dos dados. Perfil descartável e rede simulada; não comprova download público do GitHub. Nenhum catálogo/asset foi publicado. A checklist abaixo registra a entrega original do chat; estado consolidado em `../SUPABASE.md`.
 
 - [ ] Coordenador integrar main/preload/CSP/navegação/Preferências com as APIs acima.

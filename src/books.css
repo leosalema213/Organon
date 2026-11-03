@@ -37,3 +37,4 @@
 .pdf-sheet .textLayer>:not(.markedContent),.pdf-sheet .textLayer .markedContent span:not(.markedContent){z-index:1;--font-height:0;font-size:calc(var(--text-scale-factor) * var(--font-height));--scale-x:1;--rotate:0deg;transform:rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv))}
 .pdf-sheet .textLayer .markedContent{display:contents}.pdf-sheet .textLayer ::selection{background:#8080ff70;color:transparent}
 @media(max-width:900px){.reader-toolbar{gap:8px;padding:10px 16px}.reader-toolbar>span{display:none}.book-reader>footer{flex-wrap:wrap;gap:6px;padding:10px 16px}.book-reader footer>span{font-size:10px}.books-filters .tabs{width:100%}}
+.completed-book-list{background:#fff}

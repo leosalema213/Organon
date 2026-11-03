@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.5.8
+
+- Quadros ocupam a área disponível, com criação centralizada, pesquisa recolhível e colunas que deixam o fundo aparecer.
+- O player principal permite acrescentar 2, 3 ou 5 minutos à aula, como no modo compacto.
+- Corrige o download dos adicionais e ajusta o espaçamento das setas dos seletores.
+- Simplifica o cabeçalho do MEI e reúne o ano e o limite ao lado do título.
+- Alinha os títulos do Financeiro e do MEI à escala tipográfica do aplicativo.
+- Aplica superfícies coerentes à tabela do MEI, às seções de Equipes e aos livros lidos no progresso.
+- Alinha o espaçamento do Financeiro e do MEI ao padrão compacto e simplifica o cabeçalho de Equipes.
+- Consulta automaticamente o catálogo de plugins ao abrir suas preferências, mantendo a atualização manual.
+- Remove o resumo textual abaixo dos lançamentos financeiros. Financeiro e MEI são distribuídos nos pacotes assinados 1.0.1, com o mesmo carregamento em preview e produção.
+
 ## 0.5.7
 
 - Quadros Kanban integrados, com listas, cartas, marcadores, imagens e permissões por quadro.

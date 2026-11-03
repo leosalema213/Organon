@@ -4,14 +4,28 @@ import { pluginBridge } from './runtime.js';
 import './plugins.css';
 
 export default function PluginSettings({ bridge = pluginBridge(), onChanged }) {
-  const [status, setStatus] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [removing, setRemoving] = useState(null);
+  const [status, setStatus] = useState(null), [busy, setBusy] = useState(false), [checking, setChecking] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [removing, setRemoving] = useState(null);
   const refresh = useCallback(async () => {
     if (!bridge) return;
     const result = await bridge.list(); setStatus(result); onChanged?.(result.plugins);
   }, [bridge, onChanged]);
   useEffect(() => {
     let live = true;
-    bridge?.list().then(value => { if (live) setStatus(value); }).catch(e => { if (live) setError(e.message); });
+    async function load() {
+      if (!bridge) return;
+      setChecking(true);
+      try {
+        const value = await bridge.list();
+        if (!live) return;
+        setStatus(value);
+        if (!value.configured || value.busy) return;
+        await bridge.check();
+        const updated = await bridge.list();
+        if (live) { setStatus(updated); onChanged?.(updated.plugins); }
+      } catch (e) { if (live) setError(e.message || 'Não foi possível consultar os plugins.'); }
+      finally { if (live) setChecking(false); }
+    }
+    load();
     const unsubscribe = bridge?.onChanged?.(value => { if (live) { setStatus(value); onChanged?.(value.plugins); } });
     return () => { live = false; unsubscribe?.(); };
   }, [bridge, onChanged]);
@@ -21,10 +35,10 @@ export default function PluginSettings({ bridge = pluginBridge(), onChanged }) {
     catch (e) { setError(e.message || 'Não foi possível concluir a operação.'); }
     finally { setBusy(false); }
   }
-  const disabled = busy || status?.busy;
+  const disabled = busy || checking || status?.busy;
   return <div className="organon-plugin-settings">
     <div className="preference-section"><h3>Plugins do Organon</h3><p>Instale os adicionais que deseja usar. Remover um plugin preserva seus dados.</p>
-      {!bridge ? <p>Os plugins estão disponíveis no aplicativo para computador.</p> : <button className="secondary" disabled={disabled || status?.configured === false} onClick={() => run(() => bridge.check(), 'Catálogo atualizado.')}>{busy ? 'Aguarde…' : 'Consultar plugins disponíveis'}</button>}
+      {!bridge ? <p>Os plugins estão disponíveis no aplicativo para computador.</p> : <button className="secondary" disabled={disabled || status?.configured === false} onClick={() => run(() => bridge.check(), 'Catálogo atualizado.')}>{checking ? 'Consultando plugins…' : busy ? 'Aguarde…' : 'Consultar plugins disponíveis'}</button>}
       {status?.configured === false && <p>O catálogo de plugins ainda não está disponível nesta instalação.</p>}
       {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     </div>

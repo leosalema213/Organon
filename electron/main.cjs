@@ -91,7 +91,7 @@ else {
       skipPrompt: isolated && process.argv.includes('--skip-account-prompt'),
       emit: status => { if (!win.isDestroyed()) win.webContents.send('cloud:status', status); business?.syncSession().catch(() => {}); } });
     const plugins = createPluginManager({ directory: path.join(app.getPath('userData'), 'plugins'), hostVersion: app.getVersion(),
-      publicKey: require('./plugin-public-key.cjs'), fetchImpl: net.fetch.bind(net),
+      publicKey: require('./plugin-public-key.cjs'),
       emit: status => { if (!win.isDestroyed()) win.webContents.send('plugins:changed', status); } });
     win.webContents.session.protocol.handle('organon-plugin', request => plugins.handleRequest(request));
     const moduleSender = event => trusted(event) && event.senderFrame === win.webContents.mainFrame;

@@ -98,7 +98,10 @@ test('update retains one previous version, rollback is conditional and uninstall
   const f = await fixture(t); await f.manager.check(); await f.manager.install('financeiro');
   const first = await f.manager.entry('financeiro');
   const domainFile = path.join(f.directory, 'domain-data.json'); await fs.writeFile(domainFile, '{"synthetic":true}');
-  f.update(packageFixture({ version: '1.0.1' })); await f.manager.check(); await f.manager.install('financeiro');
+  f.update(packageFixture({ version: '1.0.1' })); await f.manager.check();
+  assert.equal((await f.manager.list()).plugins[0].updateAvailable, true);
+  await f.manager.install('financeiro');
+  assert.equal((await f.manager.list()).plugins[0].updateAvailable, false);
   assert.equal((await f.manager.list()).plugins[0].canRollback, true);
   assert.equal((await f.manager.handleRequest(new Request(first.url))).status, 404);
   await assert.rejects(f.manager.rollback('financeiro', '1.0.0'), /instalação mudou/);
@@ -168,6 +171,17 @@ test('download checks redirect destinations and byte limit while streaming', asy
   await assert.rejects(download(CATALOG_URL, 10, async () => new Response(null, { status: 302, headers: { location: 'https://attacker.example/payload' } })), /não autorizado/);
   await assert.rejects(download(CATALOG_URL, 10, async () => new Response('12345678901')), /limite/);
   await assert.rejects(download(CATALOG_URL, 10, async () => new Response('x', { headers: { 'content-length': '20' } })), /limite/);
+});
+
+test('download follows permitted redirects manually before reading the asset', async () => {
+  const calls = [];
+  const asset = 'https://release-assets.githubusercontent.com/test/plugin';
+  const result = await download(CATALOG_URL, 10, async (url, options) => {
+    calls.push({ url, redirect: options.redirect });
+    return url === CATALOG_URL ? new Response(null, { status: 302, headers: { location: asset } }) : new Response('ok');
+  });
+  assert.equal(result.toString(), 'ok');
+  assert.deepEqual(calls, [{ url: CATALOG_URL, redirect: 'manual' }, { url: asset, redirect: 'manual' }]);
 });
 
 test('symlink package cannot be served or replaced', async t => {

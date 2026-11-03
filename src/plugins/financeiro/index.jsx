@@ -77,7 +77,7 @@ function FinanceiroScope({ api, user, workspace }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section className="financeiro-page" aria-busy={loading || saving}>
-    <header className="financeiro-header"><div><h1>Financeiro</h1><p className="muted">{workspace.name} · Entradas, gastos e projetados</p></div><div className="button-row">
+    <header className="page-heading financeiro-header"><div><h1>Financeiro</h1><p className="muted">{workspace.name} · Entradas, gastos e projetados</p></div><div className="button-row">
       <button className="secondary" disabled={loading || saving} onClick={load}><RefreshCw size={14} />Atualizar</button>
       <button className="secondary" disabled={loading || saving || !!error} onClick={exportData}><Download size={14} />Exportar dados</button>
       <button className="secondary" disabled={saving || !canWrite || !filtered.length} onClick={() => { setError(''); setDuplicate({ targetMonth: filter.month || today().slice(0, 7), nature: 'ambos', requestId: requestId(), entries: filtered.map(e => ({ ...e })) }); }}><Copy size={14} />Duplicar</button>
@@ -111,7 +111,6 @@ function FinanceiroScope({ api, user, workspace }) {
       </tr>)}</React.Fragment>)}
       {!filtered.length && <tr><td colSpan={6} className="financeiro-empty">{loading ? 'Carregando…' : 'Nenhum lançamento encontrado.'}</td></tr>}
     </tbody></table></div>
-    <p className="muted">{filtered.length} lançamento(s). Projetados: {formatMoney(summary.projetado)}. Projetados não compõem o saldo.</p>
 
     {draft && <Modal title={draft.id ? 'Editar lançamento' : 'Novo lançamento'} small onClose={() => { if (!saving) setDraft(null); }}><form className="financeiro-form" onSubmit={e => { e.preventDefault(); try { mutate(draft.id ? 'updateEntry' : 'createEntry', { ...draft, value: decimal(draft.value), expectedRevision: draft.revision }, () => setDraft(null)); } catch (err) { setError(err.message); } }}>
       <Notice error={error} /><fieldset disabled={saving}>

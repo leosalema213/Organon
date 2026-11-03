@@ -3,3 +3,5 @@ body.dark .financeiro-total,body.dark .financeiro-table,[data-theme=dark] .finan
 [data-palette] .financeiro-total,[data-palette] .financeiro-table{background:var(--custom-surface);border-color:var(--palette-line)}
 [data-palette] .financeiro-table th,[data-palette] .financeiro-table td{border-color:var(--palette-line)}
 @media(max-width:650px){.financeiro-page{padding:16px}.financeiro-summary{grid-template-columns:1fr}.financeiro-total strong{font-size:21px}.financeiro-category{flex-wrap:wrap}.financeiro-pair{grid-template-columns:1fr}}
+.financeiro-header.page-heading{margin-bottom:0}
+.financeiro-page{padding:0;gap:var(--section-gap)}

@@ -50,7 +50,7 @@ export default function Teams({ api, user, workspace }) {
   function close() { if (!busy) { searchEpoch.current++; setForm(null); setResults([]); setPerson(null); } }
   if (!user) return <section className="teams-page"><h1>Equipes</h1><p>Entre na sua conta para criar espaços e responder aos convites. Seus estudos locais continuam disponíveis.</p></section>;
   return <section className="teams-page" aria-busy={busy}>
-    <header className="page-heading"><div><h1>Equipes</h1><p>Compartilhe somente os recursos que escolher.</p></div><button className="primary" disabled={busy} onClick={() => { setName(''); setForm({ type: 'create' }); }}>Criar espaço</button></header>
+    <header className="page-heading"><h1>Equipes</h1><button className="primary" disabled={busy} onClick={() => { setName(''); setForm({ type: 'create' }); }}>Criar espaço</button></header>
     {error && <p role="alert" className="teams-error">{error}</p>}{message && <p role="status">{message}</p>}
     <label className="teams-space">Espaço<select value={active?.id || ''} onChange={e => { setMembers([]); setCatalog({}); setForm(null); setActive(spaces.find(s => s.id === e.target.value) || null); }}><option value="">Selecione um espaço</option>{spaces.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
     <section className="teams-section"><h2>Notificações e convites</h2>{!notifications.length && <p>Nenhuma notificação.</p>}
