@@ -1,4 +1,5 @@
 -- Organon optional cloud backup. Apply only to the dedicated Organon project.
+-- Account profile schema is maintained separately in profile.sql.
 create table public.organon_sync_state (
   user_id uuid primary key references auth.users(id) on delete cascade,
   revision integer not null check (revision > 0),
@@ -34,7 +35,7 @@ revoke execute on function public.organon_commit_snapshot(integer, text, jsonb) 
 grant execute on function public.organon_commit_snapshot(integer, text, jsonb) to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('organon-assets', 'organon-assets', false, 52428800, array['image/png', 'image/jpeg', 'image/webp']);
+values ('organon-assets', 'organon-assets', false, 52428800, array['image/png', 'image/jpeg', 'image/webp', 'application/octet-stream']);
 create policy organon_asset_select on storage.objects for select to authenticated using (bucket_id = 'organon-assets' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy organon_asset_insert on storage.objects for insert to authenticated with check (bucket_id = 'organon-assets' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy organon_asset_delete on storage.objects for delete to authenticated using (bucket_id = 'organon-assets' and (storage.foldername(name))[1] = (select auth.uid())::text);

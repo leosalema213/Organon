@@ -18,8 +18,10 @@ let app, folder;
   catch { throw new Error(`O executável não abriu a interface. ${failures.join('; ') || 'Página sem conteúdo.'}`); }
   const info = await app.evaluate(({ app }) => ({ version: app.getVersion(), packaged: app.isPackaged }));
   if (!info.packaged || info.version !== version) throw new Error('O teste não abriu o pacote da versão atual.');
+  const cloud = await page.evaluate(() => window.desktop.cloud.status());
+  if (cloud.enabled !== require('../electron/cloud-config.cjs').enabled) throw new Error('A configuração da conta no pacote não corresponde à versão atual.');
   if (failures.length) throw new Error(failures.join('; '));
-  console.log(`Executável empacotado ${info.version}: Meu dia abriu, sem falhas de carregamento ou erros JavaScript, em perfil temporário.`);
+  console.log(`Executável empacotado ${info.version}: Meu dia abriu, conta ${cloud.enabled ? 'ativada' : 'desativada'}, sem falhas de carregamento ou erros JavaScript, em perfil temporário.`);
 })().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(async () => {
   if (app) await app.close();
   if (folder) { const target = path.resolve(folder); if (path.dirname(target) === path.resolve(os.tmpdir()) && path.basename(target).startsWith('organon-packaged-startup-')) fs.rmSync(target, { recursive: true, force: true }); }

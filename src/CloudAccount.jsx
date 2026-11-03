@@ -3,6 +3,39 @@ import { Cloud, CloudOff, RefreshCw, LogOut } from 'lucide-react';
 import wordmark from '../assets/branding/organon-wordmark.svg';
 import './cloud.css';
 import { waitForImages } from './images.js';
+import { prepareProfileImage } from './profile-image.js';
+
+export function syncMessage(status) {
+  const progress = status?.progress;
+  if (status?.busy) {
+    if (progress?.stage === 'auth') return 'Conectando à conta…';
+    if (progress?.stage === 'profile') return 'Salvando perfil…';
+    if (progress?.stage === 'preparing') return 'Preparando seus arquivos…';
+    if (progress?.stage === 'uploading' && progress.total) return `Enviando arquivos: ${progress.completed} de ${progress.total}`;
+    if (progress?.stage === 'committing') return 'Concluindo sincronização…';
+    if (progress?.stage === 'downloading') return 'Recebendo dados da nuvem…';
+    return 'Sincronizando…';
+  }
+  if (status?.conflict) return 'Há cópias para conferir';
+  if (status?.error) return 'Não foi possível sincronizar';
+  if (status?.pending) return 'Envio pendente';
+  return status?.lastSync ? 'Dados sincronizados' : 'Conta conectada';
+}
+
+function ProfileAvatar({ user }) {
+  const label = user?.nickname || user?.name || user?.email || '?';
+  return <span className="account-avatar" aria-hidden="true">{user?.avatar ? <img src={user.avatar} alt="" /> : label.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}</span>;
+}
+
+export function AccountBadge({ account, saveError, onClick }) {
+  const user = account.status?.user;
+  if (!user) return <div className="local-badge"><span className="live-dot" /><span>{saveError ? 'Erro ao salvar' : 'Dados locais'}<small>{saveError ? 'Exporte um backup' : 'Salvos automaticamente'}</small></span></div>;
+  return <button type="button" className="account-badge" onClick={onClick} title="Abrir meu perfil" aria-label="Abrir meu perfil"><ProfileAvatar user={user} /><span><strong>{user.nickname || user.name || user.email.split('@')[0]}</strong><small role="status">{saveError ? 'Erro ao salvar neste computador' : syncMessage(account.status)}</small></span></button>;
+}
+
+export function CloudIndicator({ status }) {
+  return <span className="local-pill" title={status?.user ? syncMessage(status) : 'Dados salvos neste computador'}><span className="live-dot" />{!status?.user ? 'LOCAL' : status.busy ? 'SINCRONIZANDO' : status.error || status.pending ? 'ENVIO PENDENTE' : status.conflict ? 'CONFERIR CÓPIAS' : 'CONECTADO'}</span>;
+}
 
 export function useCloudAccount(ready, { flush, restore }) {
   const [status, setStatus] = useState(null), [open, setOpen] = useState(false), [error, setError] = useState('');
@@ -34,10 +67,11 @@ export function useCloudAccount(ready, { flush, restore }) {
     authenticate: async (mode, email, password) => {
       if (!await callbacks.current.flush(false)) { setError('Salve um backup antes de conectar: o salvamento local falhou.'); return; }
       const value = await call(() => window.desktop.cloud.authenticate(mode, email, password));
-      if (value?.user) setOpen(false);
+      if (value?.user) { setOpen(false); call(() => window.desktop.cloud.sync()); }
     },
     sync: () => call(async () => { if (!await callbacks.current.flush(false)) throw new Error('Não foi possível salvar os dados locais.'); return window.desktop.cloud.sync(); }),
     signOut: () => call(() => window.desktop.cloud.signOut()),
+    updateProfile: value => call(() => window.desktop.cloud.updateProfile(value)),
     chooseLocal: () => call(async () => { if (!await callbacks.current.flush(false)) throw new Error('Não foi possível salvar os dados locais.'); return window.desktop.cloud.chooseLocal(); }),
     chooseRemote: () => call(async () => {
       if (!await callbacks.current.flush(true)) throw new Error('Não foi possível preservar seus dados locais.');
@@ -72,14 +106,18 @@ export function AccountDialog({ account, Modal }) {
   </Modal>;
 }
 
-export function CloudPanel({ account }) {
+export function CloudPanel({ account, Modal }) {
   const [choice, setChoice] = useState(null);
+  const [editing, setEditing] = useState(false);
   const status = account.status;
   if (!window.desktop?.cloud) return <p>A conexão com a nuvem está disponível no aplicativo para Windows.</p>;
   return <div className="preference-section cloud-panel">
-    <div className="cloud-heading"><Cloud size={21} /><div><h3>{status?.user ? 'Sua conta' : 'Seu espaço na nuvem'}</h3><p>{status?.user?.email || 'Conecte quando quiser. Seus dados continuam neste computador.'}</p></div></div>
+    <div className="cloud-heading">{status?.user ? <ProfileAvatar user={status.user} /> : <Cloud size={21} />}<div><h3>{status?.user?.nickname || status?.user?.name || (status?.user ? 'Sua conta' : 'Seu espaço na nuvem')}</h3><p>{status?.user?.email || 'Conecte quando quiser. Seus dados continuam neste computador.'}</p></div></div>
     {!status?.user ? <button className="primary" onClick={account.show}>Entrar ou criar conta</button> : <>
-      <p role="status">{status.busy ? 'Sincronizando…' : status.conflict ? 'Há dados para conferir antes de sincronizar.' : status.pending ? 'Alterações salvas neste computador. Envio pendente.' : status.lastSync ? `Última sincronização: ${new Date(status.lastSync).toLocaleString('pt-BR')}` : 'Pronto para sincronizar.'}</p>
+      <p role="status">{syncMessage(status)}</p>
+      {status.busy && status.progress?.stage !== 'profile' && <p>Você já está conectado. Pode continuar usando o Organon enquanto seus dados são sincronizados.</p>}
+      {status.progress?.stage === 'uploading' && status.progress.total > 0 && <progress className="cloud-progress" aria-label="Envio de arquivos" value={status.progress.completed} max={status.progress.total} />}
+      {status.lastSync && <p>Última sincronização: {new Date(status.lastSync).toLocaleString('pt-BR')}</p>}
       {status.conflict && <div className="cloud-conflict">
         <strong>{status.conflict.differentAccount ? 'Estes dados locais estavam vinculados a outra conta.' : 'Este computador e a nuvem têm cópias diferentes.'}</strong>
         <p>Escolha qual cópia usar. Ao trazer a nuvem, guardamos uma cópia de recuperação dos dados locais.</p>
@@ -88,9 +126,39 @@ export function CloudPanel({ account }) {
           <div className="button-row"><button className="primary" disabled={status.busy} onClick={async () => { await (choice === 'local' ? account.chooseLocal() : account.chooseRemote()); setChoice(null); }}>Confirmar escolha</button><button className="secondary" onClick={() => setChoice(null)} disabled={status.busy}>Cancelar</button></div>
         </>}
       </div>}
-      <div className="button-row"><button className="primary" onClick={account.sync} disabled={status.busy || !!status.conflict}><RefreshCw size={15} />Sincronizar agora</button><button className="secondary" onClick={account.signOut} disabled={status.busy}><LogOut size={15} />Sair da conta</button></div>
+      <div className="button-row"><button className="primary" onClick={account.sync} disabled={status.busy || !!status.conflict}><RefreshCw size={15} />Sincronizar agora</button><button className="secondary" onClick={() => setEditing(true)} disabled={status.busy}>Editar perfil</button><button className="secondary" onClick={account.signOut} disabled={status.busy}><LogOut size={15} />Sair da conta</button></div>
       <p>Envia ao abrir, ao fechar e durante o uso após um dia, somente quando há mudanças.</p>
     </>}
     {(account.error || status?.error) && <p className="form-error" role="alert">{account.error || status.error}</p>}
+    {status?.profileError && <p className="form-error" role="alert">{status.profileError}</p>}
+    {editing && status?.user && <ProfileEditor account={account} Modal={Modal} onClose={() => setEditing(false)} />}
   </div>;
+}
+
+function ProfileEditor({ account, Modal, onClose }) {
+  const user = account.status.user;
+  const [name, setName] = useState(user.name || ''), [nickname, setNickname] = useState(user.nickname || '');
+  const [avatar, setAvatar] = useState(user.avatar || null), [avatarChanged, setAvatarChanged] = useState(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  async function photo(event) {
+    const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
+    setBusy(true); setError('');
+    try { setAvatar(await prepareProfileImage(file)); setAvatarChanged(true); }
+    catch (error) { setError(error.message); } finally { setBusy(false); }
+  }
+  async function save(event) {
+    event.preventDefault(); setBusy(true); setError('');
+    try {
+      const result = await account.updateProfile({ name, nickname, ...(avatarChanged ? { avatar } : {}) });
+      if (result) onClose();
+    } finally { setBusy(false); }
+  }
+  return <Modal title="Meu perfil" small onClose={() => !busy && onClose()}><form className="editor-form account-profile-form" onSubmit={save}>
+    <div className="profile-photo"><ProfileAvatar user={{ ...user, name, nickname, avatar }} /><label className="secondary file-label">Alterar foto<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={photo} /></label>{avatar && <button type="button" className="secondary" disabled={busy} onClick={() => { setAvatar(null); setAvatarChanged(true); }}>Remover foto</button>}</div>
+    <label>Nome<input autoFocus maxLength={80} value={name} onChange={event => setName(event.target.value)} disabled={busy} /></label>
+    <label>Apelido<input maxLength={40} value={nickname} onChange={event => setNickname(event.target.value)} disabled={busy} /></label>
+    <p>O apelido aparece na barra lateral. Nome e foto acompanham sua conta nos outros computadores.</p>
+    {(error || account.error) && <p className="form-error" role="alert">{error || account.error}</p>}
+    <div className="modal-actions"><button type="button" className="secondary" onClick={onClose} disabled={busy}>Cancelar</button><button type="submit" className="primary" disabled={busy}>{busy ? 'Salvando…' : 'Salvar perfil'}</button></div>
+  </form></Modal>;
 }

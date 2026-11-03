@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.5.6
+
+- Conta e sincronização com o Supabase ativadas após validação no servidor real. Cadastro com e-mail/senha sem confirmação, isolamento por usuário e proteção da sessão pelo Windows.
+- Livros e mídia das cartas agora acompanham a cópia online, com partes verificadas por SHA-256, reaproveitamento de arquivos já enviados e confirmação da revisão após os uploads. Dados locais, backups e escolha explícita em conflitos são preservados.
+- Cadastro/login liberam a interface antes da sincronização dos estudos, que continua em segundo plano com etapas e quantidade de arquivos. A sidebar identifica a conta e o estado do envio; perfil permite nome, apelido e foto privados, preservados entre computadores.
+
 ## 0.5.5
 
 - Antecipação da aprendizagem configurável em Opções → Aprendizagem: padrão de 20 minutos para toda a coleção; zero aguarda o intervalo completo. Cartas antecipadas vêm depois das disponíveis normalmente, e os contadores acompanham a fila. Vencimentos, passos e histórico existentes são preservados.

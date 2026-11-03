@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('desktop', {
   cloud: {
     status: () => ipcRenderer.invoke('cloud:status'),
     authenticate: (mode, email, password) => ipcRenderer.invoke('cloud:authenticate', mode, email, password),
+    updateProfile: value => ipcRenderer.invoke('cloud:profile', value),
     skip: () => ipcRenderer.invoke('cloud:skip'),
     signOut: () => ipcRenderer.invoke('cloud:signout'),
     sync: () => ipcRenderer.invoke('cloud:sync'),
