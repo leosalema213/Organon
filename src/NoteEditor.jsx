@@ -20,9 +20,11 @@ const Image = Node.create({
       const dom = document.createElement('figure'); dom.className = 'note-document-image'; dom.contentEditable = 'false';
       const image = document.createElement('img'); image.src = node.attrs.src; image.alt = 'Imagem da anotação';
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'icon-button';
+      remove.hidden = !editor.isEditable;
       remove.setAttribute('aria-label', 'Remover imagem'); remove.title = 'Remover imagem'; remove.textContent = '×';
       remove.addEventListener('mousedown', event => event.preventDefault());
       remove.addEventListener('click', () => {
+        if (!editor.isEditable) return;
         const pos = getPos();
         if (typeof pos === 'number') { editor.commands.deleteRange({ from: pos, to: pos + node.nodeSize }); editor.view.focus(); }
       });
@@ -33,7 +35,7 @@ const Image = Node.create({
 });
 
 // One editor per note: its history and selection survive React autosave renders.
-export default forwardRef(function NoteEditor({ note, onChange, notify, rich = true }, apiRef) {
+export default forwardRef(function NoteEditor({ note, onChange, notify, rich = true, disabled = false }, apiRef) {
   const host = useRef();
   const instance = useRef();
   const [format, setFormat] = useState({});
@@ -42,17 +44,20 @@ export default forwardRef(function NoteEditor({ note, onChange, notify, rich = t
     let pending = 0; let detached = false;
     const editor = new Editor({
       element: host.current,
+      editable: !disabled,
       extensions: [Document, Paragraph, Text, HardBreak, UndoRedo, Dropcursor, Gapcursor, TrailingNode, Image, ...(rich ? richExtensions : [])],
       content: noteDocument(note),
       onCreate: ({ editor }) => { editor.view.dom.dataset.empty = String(editor.isEmpty); },
       editorProps: {
         attributes: { class: 'notebook-text', role: 'textbox', 'aria-label': 'Texto da anotação', 'aria-multiline': 'true', 'data-placeholder': 'Escreva aqui…' },
         handlePaste: (_view, event) => {
+          if (!editor.isEditable) return false;
           const files = [...event.clipboardData.items].filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
           if (!files.length) return false;
           event.preventDefault(); api.images(files); return true;
         },
         handleDrop: (view, event, _slice, moved) => {
+          if (!editor.isEditable) return false;
           if (moved || !event.dataTransfer.files.length) return false;
           event.preventDefault();
           const point = view.posAtCoords({ left: event.clientX, top: event.clientY });
@@ -134,5 +139,6 @@ export default forwardRef(function NoteEditor({ note, onChange, notify, rich = t
       if (!pending) editor.destroy();
     };
   }, [note.id, rich]);
-  return <>{rich && <FormatToolbar editor={instance.current} state={format} />}<div className="note-document-editor" ref={host} /></>;
+  useLayoutEffect(() => { instance.current?.setEditable(!disabled, false); host.current?.querySelectorAll('.note-document-image button').forEach(button => { button.hidden = disabled; }); }, [disabled]);
+  return <>{rich && !disabled && <FormatToolbar editor={instance.current} state={format} />}<div className="note-document-editor" ref={host} /></>;
 });

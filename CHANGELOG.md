@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.5.7
+
+- Quadros Kanban integrados, com listas, cartas, marcadores, imagens e permissões por quadro.
+- Equipes com convites e notificações no aplicativo, aceite explícito e compartilhamento configurável de cadernos, livros, quadros e financeiro. MEI e estudos pessoais permanecem privados.
+- Financeiro e MEI como adicionais opcionais em Preferências → Plugins, com pacotes assinados e remoção que preserva os dados online.
+- Financeiro com entradas, gastos, projeções, categorias unificadas e duplicação entre meses. MEI preserva os critérios e cálculos do aplicativo anterior, com valores decimais exatos.
+- Migração conferida dos dados legados, preservando identificadores, autoria histórica e arquivos, com proteção contra importação duplicada.
+
 ## 0.5.6
 
 - Conta e sincronização com o Supabase ativadas após validação no servidor real. Cadastro com e-mail/senha sem confirmação, isolamento por usuário e proteção da sessão pelo Windows.

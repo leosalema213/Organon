@@ -8,6 +8,7 @@ const { Readable } = require('node:stream');
 const { version } = require('../package.json');
 const { INSTALLER_NAMES } = require('../electron/branding.cjs');
 const { isProductionVersion } = require('../electron/versions.cjs');
+const { pluginReleaseAssets } = require('./plugin-release-assets.cjs');
 const REPO = 'leosalema213/app-estudos';
 const root = path.resolve(__dirname, '..');
 function git(...args) { return cp.execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim(); }
@@ -40,6 +41,7 @@ function token() {
     for await (const chunk of fs.createReadStream(file)) aliasHash.update(chunk);
     if (aliasHash.digest('hex') !== digest || fs.readFileSync(file + '.sha256', 'utf8').split(/\s/)[0] !== digest) throw new Error('O instalador de compatibilidade está desatualizado. Execute npm run checksums.');
   }
+  artifacts.push(...pluginReleaseAssets(root, version));
   const headers = { Authorization: `Bearer ${token()}`, 'User-Agent': 'Organon-release', Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
   async function request(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers }, signal: AbortSignal.timeout(600000) });
@@ -58,7 +60,7 @@ function token() {
     const existing = release.assets.find(a => a.name === name);
     if (existing) throw new Error(`O rascunho já contém ${name}. Confira os assets no GitHub antes de repetir.`);
     const url = release.upload_url.split('{')[0] + '?name=' + encodeURIComponent(name);
-    await request(url, { method: 'POST', headers: { 'Content-Type': name.endsWith('.exe') ? 'application/octet-stream' : 'text/plain', 'Content-Length': String(fs.statSync(file).size) }, body: Readable.toWeb(fs.createReadStream(file)), duplex: 'half' });
+    await request(url, { method: 'POST', headers: { 'Content-Type': name.endsWith('.exe') || name.endsWith('.organon-plugin') ? 'application/octet-stream' : name.endsWith('.json') ? 'application/json' : 'text/plain', 'Content-Length': String(fs.statSync(file).size) }, body: Readable.toWeb(fs.createReadStream(file)), duplex: 'half' });
     console.log(`Publicado: ${name}`);
   }
   release = await request(`${api}/${release.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draft: false, make_latest: 'true' }) });

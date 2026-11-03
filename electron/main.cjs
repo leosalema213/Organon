@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog, powerMonitor, nativeTheme, nativeImage, net, screen, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, dialog, powerMonitor, nativeTheme, nativeImage, net, screen, shell, safeStorage, protocol } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
@@ -7,6 +7,10 @@ const { fitCompactBounds } = require('./compact-bounds.cjs');
 const { WindowsStartup } = require('./startup.cjs');
 const { CloudSync } = require('./cloud.cjs');
 const { BookFiles } = require('./books.cjs');
+const { createPluginManager, registerPluginIpc, scheme } = require('./plugins.cjs');
+const { createBusiness } = require('./business.cjs');
+const { createRealtimeClient } = require('./realtime.cjs');
+protocol.registerSchemesAsPrivileged([scheme]);
 const { ReminderNotifications, openRemindersWindow } = require('./reminder-notifications.cjs');
 const { APP_ID, DEVELOPMENT_APP_ID, legacyUserData, repairDevelopmentShortcut } = require('./branding.cjs');
 // Native dialogs fall back to app.getName(), which otherwise uses the legacy package name.
@@ -25,6 +29,7 @@ let changingMode = false;
 let windowSaveTimer;
 let startup;
 let cloud;
+let business;
 let closing = false;
 let imagesPending = 0;
 let readingBooks = false;
@@ -84,7 +89,26 @@ else {
     cloud = new CloudSync({ directory: app.getPath('userData'), safeStorage, fetchImpl: net.fetch.bind(net), readData,
       enabled: require('./cloud-config.cjs').enabled || (isolated && process.argv.includes('--enable-cloud-test')),
       skipPrompt: isolated && process.argv.includes('--skip-account-prompt'),
-      emit: status => { if (!win.isDestroyed()) win.webContents.send('cloud:status', status); } });
+      emit: status => { if (!win.isDestroyed()) win.webContents.send('cloud:status', status); business?.syncSession().catch(() => {}); } });
+    const plugins = createPluginManager({ directory: path.join(app.getPath('userData'), 'plugins'), hostVersion: app.getVersion(),
+      publicKey: require('./plugin-public-key.cjs'), fetchImpl: net.fetch.bind(net),
+      emit: status => { if (!win.isDestroyed()) win.webContents.send('plugins:changed', status); } });
+    win.webContents.session.protocol.handle('organon-plugin', request => plugins.handleRequest(request));
+    const moduleSender = event => trusted(event) && event.senderFrame === win.webContents.mainFrame;
+    registerPluginIpc({ ipcMain, manager: plugins, isTrustedSender: moduleSender });
+    business = createBusiness({ cloud, plugins, readData: () => readData() || { notebooks: [], books: [] }, books, createRealtimeClient,
+      emit: value => { if (!win.isDestroyed()) win.webContents.send('modules:changed', value); },
+      validateSharedResource: async ({ orgId, module, resourceId, content }) => {
+        if (module !== 'notebooks' || !content || content.id !== resourceId) throw new Error('Somente o conteúdo do caderno compartilhado pode ser editado.');
+        const { validateData, seed } = require('./vendor/resource-model.cjs');
+        const safe = require('./modules/teams.cjs').extractResource({ notebooks: [content] }, 'notebooks', resourceId);
+        return validateData({ ...seed(), notebooks: [safe] }).notebooks[0];
+      } });
+    ipcMain.handle('modules:call', (event, module, action, payload) => { if (!moduleSender(event)) throw new Error('Origem não autorizada.'); return business.dispatch(module, action, payload); });
+    ipcMain.handle('modules:watch', (event, orgId) => { if (!moduleSender(event)) throw new Error('Origem não autorizada.'); return business.watchWorkspace(orgId); });
+    business.syncSession().catch(() => {});
+    const realtimeRefresh = setInterval(() => business.syncSession().catch(() => {}), 30000); realtimeRefresh.unref();
+    app.on('before-quit', () => { clearInterval(realtimeRefresh); business.dispose().catch(() => {}); });
     const cloudAction = (channel, action) => ipcMain.handle(channel, async (event, ...args) => { if (trusted(event)) { await cloud.ready; return action(...args); } });
     cloudAction('cloud:status', () => cloud.status());
     cloudAction('cloud:authenticate', (mode, email, password) => cloud.authenticate(mode, email, password));

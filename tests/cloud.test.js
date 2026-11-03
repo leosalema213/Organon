@@ -161,3 +161,19 @@ test('account profile and private avatar survive restart, edit/removal and accou
   await cloud.signOut(); await cloud.authenticate('login', 'other@example.invalid', 'test-password');
   assert.equal(cloud.status().user.name, ''); assert.equal(cloud.status().user.avatar, null);
 });
+
+test('parallel module requests share one token refresh', async () => {
+  const h=harness(),cloud=h.create();await cloud.authenticate('login','test@example.invalid','test-password');
+  cloud.session.expires_at=0;const before=h.server.calls;
+  const tokens=await Promise.all(Array.from({length:10},()=>cloud.token()));
+  assert.equal(new Set(tokens).size,1);assert.equal(h.server.calls-before,1);
+});
+
+test('refresh finishing after signout cannot restore the old session', {timeout:5000}, async () => {
+  const h=harness(),cloud=h.create();await cloud.authenticate('login','test@example.invalid','test-password');
+  const original=cloud.fetch;let release,started;
+  const gate=new Promise(resolve=>{release=resolve;}),pending=new Promise(resolve=>{started=resolve;});
+  cloud.fetch=async(url,options)=>{if(url.includes('grant_type=refresh_token')){started();await gate;}return original(url,options);};
+  cloud.session.expires_at=0;const refreshing=cloud.token();await pending;await cloud.signOut();release();
+  await assert.rejects(refreshing,/conta mudou/);assert.equal(cloud.status().user,null);assert.equal(fs.existsSync(cloud.sessionFile),false);
+});

@@ -1,0 +1,7 @@
+.organon-plugin-settings .organon-plugin-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.organon-plugin-settings .setting-row { gap: 16px; }
+.organon-plugin-settings small { color: var(--muted); }
+@media (max-width: 640px) {
+  .organon-plugin-settings .setting-row { align-items: flex-start; flex-direction: column; }
+  .organon-plugin-settings .organon-plugin-actions { justify-content: flex-start; }
+}

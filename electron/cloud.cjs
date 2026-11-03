@@ -37,9 +37,10 @@ class CloudSync {
   publish() { const status = this.status(); this.emit(status); return status; }
   reportProgress(stage, completed = 0, total = 0) { this.progress = { stage, completed, total }; this.publish(); }
   saveMeta() { fs.mkdirSync(this.directory, { recursive: true }); fs.writeFileSync(this.metaFile + '.tmp', JSON.stringify(this.meta)); fs.renameSync(this.metaFile + '.tmp', this.metaFile); }
-  async saveSession(session) {
+  async saveSession(session, expectedSession) {
     if (!await this.safeStorage.isAsyncEncryptionAvailable()) throw new Error('O Windows não disponibilizou a proteção da sessão. Continue offline e tente novamente.');
     const encrypted = await this.safeStorage.encryptStringAsync(JSON.stringify(session));
+    if (expectedSession && this.session !== expectedSession) throw new Error('A conta mudou. Entre novamente para continuar.');
     fs.writeFileSync(this.sessionFile + '.tmp', encrypted); fs.renameSync(this.sessionFile + '.tmp', this.sessionFile);
     this.session = session;
   }
@@ -69,11 +70,17 @@ class CloudSync {
   }
   async token() {
     if (!this.session) throw new Error('Entre para conectar a nuvem.');
-    if ((this.session.expires_at || 0) * 1000 < Date.now() + 60000) {
-      const session = await this.request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', token: null, body: { refresh_token: this.session.refresh_token } });
-      await this.saveSession({ ...session, expires_at: Math.floor(Date.now() / 1000) + session.expires_in });
-    }
-    return this.session.access_token;
+    const active = this.session;
+    if ((active.expires_at || 0) * 1000 >= Date.now() + 60000) return active.access_token;
+    if (this.refreshing?.session === active) return this.refreshing.promise;
+    const refresh = { session: active };
+    refresh.promise = (async () => {
+      const session = await this.request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', token: null, body: { refresh_token: active.refresh_token } });
+      await this.saveSession({ ...session, expires_at: Math.floor(Date.now() / 1000) + session.expires_in }, active);
+      return this.session.access_token;
+    })();
+    this.refreshing = refresh;
+    try { return await refresh.promise; } finally { if (this.refreshing === refresh) this.refreshing = null; }
   }
   authenticate(mode, email, password) {
     return this.run(async () => {

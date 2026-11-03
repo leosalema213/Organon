@@ -38,6 +38,20 @@ contextBridge.exposeInMainWorld('desktop', {
     onStatus: callback => { const handler = (_event, status) => callback(status); ipcRenderer.on('cloud:status', handler); return () => ipcRenderer.removeListener('cloud:status', handler); },
     onPrepareClose: callback => { const handler = () => callback(); ipcRenderer.on('cloud:prepare-close', handler); return () => ipcRenderer.removeListener('cloud:prepare-close', handler); },
   },
+  modules: {
+    call: (module, action, payload = {}) => ipcRenderer.invoke('modules:call', module, action, payload),
+    watch: orgId => ipcRenderer.invoke('modules:watch', orgId),
+    onChanged: callback => { const handler = (_event, value) => callback(value); ipcRenderer.on('modules:changed', handler); return () => ipcRenderer.removeListener('modules:changed', handler); },
+  },
+  plugins: {
+    list: () => ipcRenderer.invoke('plugins:list'),
+    check: () => ipcRenderer.invoke('plugins:check'),
+    install: id => ipcRenderer.invoke('plugins:install', id),
+    remove: id => ipcRenderer.invoke('plugins:remove', id),
+    rollback: (id, version) => ipcRenderer.invoke('plugins:rollback', id, version),
+    entry: id => ipcRenderer.invoke('plugins:entry', id),
+    onChanged: callback => { const handler = (_event, value) => callback(value); ipcRenderer.on('plugins:changed', handler); return () => ipcRenderer.removeListener('plugins:changed', handler); },
+  },
   startup: {
     status: () => ipcRenderer.invoke('startup:status'),
     set: enabled => ipcRenderer.invoke('startup:set', enabled),

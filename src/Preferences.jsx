@@ -3,8 +3,9 @@ import { Bell, Check, Download, Monitor, Moon, Palette, Sun, Upload } from 'luci
 import { themePresets } from './model.js';
 import { UpdateSettings } from './Updates.jsx';
 import { CloudPanel } from './CloudAccount.jsx';
+import PluginSettings from './plugin-system/PluginSettings.jsx';
 
-const allSections = [['appearance', 'Aparência'], ['general', 'Geral'], ['account', 'Conta'], ['backup', 'Backup'], ['updates', 'Atualizações']];
+const allSections = [['appearance', 'Aparência'], ['general', 'Geral'], ['account', 'Conta'], ['plugins', 'Plugins'], ['backup', 'Backup'], ['updates', 'Atualizações']];
 const modes = [['system', 'Dispositivo', Monitor], ['light', 'Claro', Sun], ['dark', 'Escuro', Moon], ['custom', 'Personalizado', Palette]];
 
 export default function Preferences({ settings, onChange, onClose, onTestSound, onBackup, onImport, onTutorial, updates, account, Modal }) {
@@ -43,7 +44,8 @@ export default function Preferences({ settings, onChange, onClose, onTestSound, 
         <div className="preference-section"><h3>Como funciona</h3><p>O próximo bloco começa quando você der play. Fechar o aplicativo pausa a sessão.</p><button className="secondary" onClick={onTutorial}>Como usar o Organon</button></div>
       </>}
       {tab === 'account' && <CloudPanel account={account} Modal={Modal} />}
-      {tab === 'backup' && <div className="preference-section"><h3>Seus dados</h3><p>Exporte planos, histórico, anotações e imagens em um único arquivo. O backup permite restaurar seus dados ou levá-los para outro computador.</p><div className="button-row"><button className="primary" onClick={onBackup}><Download size={16} />Exportar backup</button>{window.desktop ? <button className="secondary" onClick={() => onImport()}><Upload size={16} />Importar backup</button> : <label className="secondary file-label"><Upload size={16} />Importar backup<input type="file" accept=".json" onChange={e => e.target.files[0] && onImport(e.target.files[0])} /></label>}</div></div>}
+      {tab === 'plugins' && <PluginSettings />}
+      {tab === 'backup' && <div className="preference-section"><h3>Seus dados pessoais</h3><p>Exporte planos, histórico, anotações e imagens em um único arquivo. O backup permite restaurar seus dados ou levá-los para outro computador.</p><p>Espaços, quadros, financeiro, MEI e cópias compartilhadas ficam na conta online e não entram neste arquivo. O financeiro e o MEI têm suas próprias opções de exportação.</p><div className="button-row"><button className="primary" onClick={onBackup}><Download size={16} />Exportar backup</button>{window.desktop ? <button className="secondary" onClick={() => onImport()}><Upload size={16} />Importar backup</button> : <label className="secondary file-label"><Upload size={16} />Importar backup<input type="file" accept=".json" onChange={e => e.target.files[0] && onImport(e.target.files[0])} /></label>}</div></div>}
       {tab === 'updates' && <div className="preference-section"><h3>Versão e atualizações</h3><UpdateSettings updates={updates} /><p>Novas versões são verificadas ao abrir. Você escolhe quando baixar e aplicar a atualização.</p></div>}
     </section>
     <div className="preferences-footer"><span>Preferências salvas automaticamente</span><button className="secondary" onClick={onClose}>Concluir</button></div>
