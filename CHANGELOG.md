@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.5.9
+
+- Cadastro em etapas com nome/apelido obrigatórios, foto opcional e reenvio de perfil após falha de conexão.
+- Central de notificações no sininho, com leitura e exclusão individual/em lote e convites independentes dos avisos.
+- Equipes organiza membros e compartilhamento em abas; proprietários e convidados aceitos podem consultar os membros, com administração reservada ao proprietário.
+- Contrato aditivo de notificações e membros aplicado no servidor e validado com dados sintéticos descartados por rollback.
+- Membros de Equipes exibem nome, apelido e avatar, com ícone de usuário como alternativa; IDs permanecem somente internos.
+
 ## 0.5.8
 
 - Quadros ocupam a área disponível, com criação centralizada, pesquisa recolhível e colunas que deixam o fundo aparecer.

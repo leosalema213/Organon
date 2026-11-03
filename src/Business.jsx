@@ -13,7 +13,7 @@ const readingState=book=>Object.fromEntries(['page','pageCount','furthestPage','
 
 export function useBusiness(user) {
   const plugins=usePlugins(),[spaces,setSpaces]=useState([]),[selected,setSelected]=useState(null),[error,setError]=useState(''),[notices,setNotices]=useState(0);
-  const epoch=useRef(0),listeners=useRef(new Map());
+  const epoch=useRef(0),refreshSequence=useRef(0),listeners=useRef(new Map());
   const api=useMemo(()=>({
     call:async(module,action,payload={})=>{try{if(!window.desktop?.modules)throw new Error('Disponível no aplicativo para Windows.');return await window.desktop.modules.call(module,action,payload);}catch(error){throw cleanError(error);}},
     subscribe:(module,listener)=>{const set=listeners.current.get(module)||new Set();set.add(listener);listeners.current.set(module,set);return()=>set.delete(listener);},
@@ -22,12 +22,14 @@ export function useBusiness(user) {
   useEffect(()=>{
     const current=++epoch.current;setSpaces([]);setSelected(null);setNotices(0);setError('');
     if(!user?.id)return;
-    const refresh=async()=>{try{
-      const [next,notifications]=await Promise.all([api.call('teams','list'),api.call('teams','notifications')]);
-      if(epoch.current!==current)return;
+    const refresh=async()=>{const sequence=++refreshSequence.current;try{
+      const [spacesResult,inboxResult]=await Promise.allSettled([api.call('teams','list'),api.call('teams','inbox')]);
+      if(epoch.current!==current||sequence!==refreshSequence.current)return;
+      if(spacesResult.status!=='fulfilled')throw spacesResult.reason;
+      const next=spacesResult.value;
       setSpaces(next);setSelected(id=>next.some(s=>s.id===id)?id:next.find(s=>s.owner_id===user.id)?.id||next[0]?.id||null);
-      setNotices(notifications.filter(n=>!n.read_at).length);setError('');
-    }catch(error){if(epoch.current===current)setError(error.message);}};
+      setNotices(inboxResult.status==='fulfilled'?inboxResult.value.unreadCount||0:0);setError('');
+    }catch(error){if(epoch.current===current&&sequence===refreshSequence.current)setError(error.message);}};
     refresh();const stop=api.subscribe('teams',event=>{if(event.type!=='connection')refresh();});
     return()=>{epoch.current++;stop();};
   },[api,user?.id]);
@@ -90,7 +92,7 @@ export function SharedResources({api,user,workspace,module,onBack,notify,Modal})
   }
   const title=module==='books'?'Livros compartilhados':'Cadernos compartilhados',note=draft?.pages.find(page=>page.id===pageId),Reader=reading?.format==='pdf'?PdfReader:ReflowReader;
   return <section className="shared-page"><header className="page-heading"><div><button className="secondary" onClick={onBack}><ArrowLeft size={14}/>Voltar</button><h1>{title}</h1><p>Recursos publicados neste espaço e autorizados para sua conta.</p></div></header>
-    {!user?<p>Entre na sua conta para acessar os compartilhados.</p>:!workspace?<p>Selecione um espaço ou aceite um convite em Equipes.</p>:<>
+    {!user?<p>Entre na sua conta para acessar os compartilhados.</p>:!workspace?<p>Selecione um espaço ou aceite um convite no sininho de notificações.</p>:<>
       {error&&<p role="alert" className="form-error">{error}</p>}
       <div className="shared-resource-list">{items.map(row=><button className="secondary" key={row.resource_id} disabled={busy} onClick={()=>open(row)}>{row.content.name||row.content.title}</button>)}</div>
       {!items.length&&<p className="muted">Nenhum recurso compartilhado disponível neste espaço.</p>}

@@ -111,7 +111,7 @@ else {
     app.on('before-quit', () => { clearInterval(realtimeRefresh); business.dispose().catch(() => {}); });
     const cloudAction = (channel, action) => ipcMain.handle(channel, async (event, ...args) => { if (trusted(event)) { await cloud.ready; return action(...args); } });
     cloudAction('cloud:status', () => cloud.status());
-    cloudAction('cloud:authenticate', (mode, email, password) => cloud.authenticate(mode, email, password));
+    cloudAction('cloud:authenticate', (mode, email, password, profile) => cloud.authenticate(mode, email, password, profile));
     cloudAction('cloud:profile', value => cloud.updateProfile(value));
     cloudAction('cloud:skip', () => cloud.skip());
     cloudAction('cloud:signout', () => cloud.signOut());

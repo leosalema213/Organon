@@ -64,10 +64,11 @@ export function useCloudAccount(ready, { flush, restore }) {
   return { status, open, error,
     show: () => { setError(''); setOpen(true); },
     close: async () => { if (await call(() => window.desktop.cloud.skip())) setOpen(false); },
-    authenticate: async (mode, email, password) => {
+    authenticate: async (mode, email, password, profile) => {
       if (!await callbacks.current.flush(false)) { setError('Salve um backup antes de conectar: o salvamento local falhou.'); return; }
-      const value = await call(() => window.desktop.cloud.authenticate(mode, email, password));
+      const value = await call(() => window.desktop.cloud.authenticate(mode, email, password, profile));
       if (value?.user) { setOpen(false); call(() => window.desktop.cloud.sync()); }
+      return value;
     },
     sync: () => call(async () => { if (!await callbacks.current.flush(false)) throw new Error('Não foi possível salvar os dados locais.'); return window.desktop.cloud.sync(); }),
     signOut: () => call(() => window.desktop.cloud.signOut()),
@@ -84,23 +85,44 @@ export function useCloudAccount(ready, { flush, restore }) {
 
 export function AccountDialog({ account, Modal }) {
   const [mode, setMode] = useState('login'), [email, setEmail] = useState(''), [password, setPassword] = useState(''), [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(0), [name, setName] = useState(''), [nickname, setNickname] = useState(''), [avatar, setAvatar] = useState(null), [photoError, setPhotoError] = useState('');
+  const firstField = useRef();
+  useEffect(() => { firstField.current?.focus(); }, [mode, step]);
   const disabled = busy || account.status?.busy;
+  async function photo(event) {
+    const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
+    setBusy(true); setPhotoError('');
+    try { setAvatar(await prepareProfileImage(file)); } catch (error) { setPhotoError(error.message); } finally { setBusy(false); }
+  }
   async function submit(event) {
-    event.preventDefault(); setBusy(true);
-    try { await account.authenticate(mode, email, password); } finally { setBusy(false); setPassword(''); }
+    event.preventDefault();
+    if (disabled) return;
+    if (mode === 'signup' && step < 2) {
+      if (step === 0 && (!name.trim() || !nickname.trim())) return;
+      setStep(value => value + 1); return;
+    }
+    setBusy(true);
+    try {
+      const result = await account.authenticate(mode, email, password, mode === 'signup' ? { name: name.trim(), nickname: nickname.trim(), avatar } : undefined);
+      if (!result?.user && mode === 'signup') setStep(1);
+    } finally { setBusy(false); setPassword(''); }
   }
   return <Modal title="Sua conta" small className="account-modal" onClose={() => !disabled && account.close()}>
     <span className="account-wordmark" style={{ maskImage: `url(${wordmark})` }} role="img" aria-label="Organon" />
     <p className="account-intro">Seu espaço, onde você estiver.</p>
     <div className="account-tabs" role="tablist" aria-label="Acesso à conta">
-      <button role="tab" aria-selected={mode === 'login'} onClick={() => { setMode('login'); setPassword(''); }} disabled={disabled}>Entrar</button>
-      <button role="tab" aria-selected={mode === 'signup'} onClick={() => { setMode('signup'); setPassword(''); }} disabled={disabled}>Criar conta</button>
+      <button role="tab" aria-selected={mode === 'login'} onClick={() => { setMode('login'); setStep(0); setPassword(''); setPhotoError(''); }} disabled={disabled}>Entrar</button>
+      <button role="tab" aria-selected={mode === 'signup'} onClick={() => { setMode('signup'); setStep(0); setPassword(''); setPhotoError(''); }} disabled={disabled}>Criar conta</button>
     </div>
     <form className="account-form" onSubmit={submit}>
-      <label>E-mail<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} disabled={disabled} /></label>
-      <label>Senha<input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} required minLength={mode === 'signup' ? 8 : 1} maxLength={256} placeholder={mode === 'signup' ? 'Pelo menos 8 caracteres' : ''} value={password} onChange={event => setPassword(event.target.value)} disabled={disabled} /></label>
+      {mode === 'signup' && <p className="account-step" role="status">Etapa {step + 1} de 3 · {['Seu perfil', 'Seu acesso', 'Sua foto (opcional)'][step]}</p>}
+      {mode === 'signup' && step === 0 && <><label>Nome<input ref={firstField} autoComplete="name" required maxLength={80} value={name} onChange={event => setName(event.target.value)} disabled={disabled} /></label><label>Apelido<input autoComplete="nickname" required maxLength={40} value={nickname} onChange={event => setNickname(event.target.value)} disabled={disabled} /></label></>}
+      {(mode === 'login' || step === 1) && <><label>E-mail<input ref={firstField} type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} disabled={disabled} /></label><label>Senha<input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} required minLength={mode === 'signup' ? 8 : 1} maxLength={256} placeholder={mode === 'signup' ? 'Pelo menos 8 caracteres' : ''} value={password} onChange={event => setPassword(event.target.value)} disabled={disabled} /></label></>}
+      {mode === 'signup' && step === 2 && <><p>Você pode escolher uma foto agora ou adicionar depois no seu perfil.</p><div className="profile-photo"><ProfileAvatar user={{ name, nickname, avatar }} /><label className="secondary file-label">Escolher foto<input ref={firstField} type="file" accept="image/png,image/jpeg,image/webp" disabled={disabled} onChange={photo} /></label>{avatar && <button type="button" className="secondary" disabled={disabled} onClick={() => setAvatar(null)}>Remover foto</button>}</div></>}
+      {photoError && <p className="form-error" role="alert">{photoError}</p>}
       {account.error && <p className="form-error" role="alert">{account.error}</p>}
-      <button className="primary" type="submit" disabled={disabled}>{disabled ? 'Conectando…' : mode === 'signup' ? 'Criar minha conta' : 'Entrar na minha conta'}</button>
+      <button className="primary" type="submit" disabled={disabled || (mode === 'signup' && step === 0 && (!name.trim() || !nickname.trim()))}>{disabled ? 'Aguarde…' : mode === 'signup' ? step < 2 ? 'Continuar' : avatar ? 'Criar minha conta' : 'Pular foto e criar conta' : 'Entrar na minha conta'}</button>
+      {mode === 'signup' && step > 0 && <button className="secondary" type="button" disabled={disabled} onClick={() => setStep(value => value - 1)}>Voltar</button>}
       <button className="account-offline" type="button" onClick={account.close} disabled={disabled}><CloudOff size={14} />Continuar offline</button>
     </form>
   </Modal>;

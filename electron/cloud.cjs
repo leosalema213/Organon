@@ -82,15 +82,24 @@ class CloudSync {
     this.refreshing = refresh;
     try { return await refresh.promise; } finally { if (this.refreshing === refresh) this.refreshing = null; }
   }
-  authenticate(mode, email, password) {
+  authenticate(mode, email, password, profile) {
     return this.run(async () => {
       if (!this.enabled) throw new Error('A conexão com a nuvem está indisponível nesta versão.');
       this.reportProgress('auth');
       if (!['login', 'signup'].includes(mode) || typeof email !== 'string' || email.length > 254 || typeof password !== 'string' || password.length > 256 || (mode === 'signup' && password.length < 8)) throw new Error('Informe seu e-mail e uma senha válida de pelo menos 8 caracteres.');
-      const session = await this.request(mode === 'signup' ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password', { method: 'POST', token: null, body: { email: email.trim(), password } });
+      const fields = mode === 'signup' ? profileFields(profile) : null;
+      if (fields && (!fields.name || !fields.nickname)) throw new Error('Informe seu nome e apelido para criar a conta.');
+      if (fields && profile.avatar != null) avatarBytes(profile.avatar);
+      const session = await this.request(mode === 'signup' ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password', { method: 'POST', token: null, body: { email: email.trim(), password, ...(fields ? { data: fields } : {}) } });
       if (!session?.access_token) throw new Error('A confirmação de e-mail ainda está habilitada no servidor. Seus dados locais foram preservados.');
       await this.saveSession({ ...session, expires_at: Math.floor(Date.now() / 1000) + session.expires_in });
-      this.meta.promptSeen = true; this.meta.pending = true; this.profileError = ''; this.saveMeta(); this.publish();
+      if (fields) {
+        this.meta.signupProfile = { userId: session.user.id, ...fields, ...(profile.avatar ? { avatar: profile.avatar } : {}) };
+        this.meta.profile = { userId: session.user.id, ...fields, avatar: profile.avatar || null };
+        this.saveMeta();
+        try { await this.loadProfile(); } catch (error) { this.profileError = 'Conta criada. O perfil será reenviado ao sincronizar. ' + error.message; }
+      }
+      this.meta.promptSeen = true; this.meta.pending = true; if (!this.meta.signupProfile) this.profileError = ''; this.saveMeta(); this.publish();
       return this.status();
     });
   }
@@ -122,8 +131,20 @@ class CloudSync {
   async loadProfile() {
     await this.token();
     const userId = this.session.user.id;
+    const pending = this.meta.signupProfile;
+    if (pending?.userId === userId) {
+      await this.saveProfile(pending);
+      delete this.meta.signupProfile; this.saveMeta();
+    }
     const rows = await this.request('/rest/v1/organon_profiles?select=name,nickname,avatar_hash&user_id=eq.' + userId);
-    const row = rows?.[0], fields = profileFields(row || { name: '', nickname: '' });
+    let row = rows?.[0];
+    const metadata = this.session.user.user_metadata;
+    if (!row && typeof metadata?.name === 'string' && metadata.name.trim() && typeof metadata?.nickname === 'string' && metadata.nickname.trim()) {
+      // Identity metadata is display-only, never used to authorize access.
+      const initial = profileFields(metadata);
+      await this.saveProfile(initial); row = initial;
+    }
+    const fields = profileFields(row || { name: '', nickname: '' });
     let avatar = null;
     if (row?.avatar_hash) {
       if (!/^[a-f0-9]{64}$/.test(row.avatar_hash)) throw new Error('Foto do perfil inválida.');
@@ -141,6 +162,12 @@ class CloudSync {
   updateProfile(value) {
     return this.run(async () => {
       if (!this.enabled || !this.session) throw new Error('Entre para editar seu perfil.');
+      await this.saveProfile(value);
+      if (this.meta.signupProfile?.userId === this.session.user.id) { delete this.meta.signupProfile; this.saveMeta(); }
+      await this.loadProfile(); this.profileError = ''; return this.status();
+    });
+  }
+  async saveProfile(value) {
       const fields = profileFields(value); this.reportProgress('profile'); await this.token();
       let avatarHash;
       if (Object.hasOwn(value, 'avatar')) {
@@ -152,8 +179,6 @@ class CloudSync {
       }
       await this.request('/rest/v1/organon_profiles?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' },
         body: { user_id: this.session.user.id, ...fields, ...(avatarHash !== undefined ? { avatar_hash: avatarHash } : {}), updated_at: new Date().toISOString() } });
-      await this.loadProfile(); this.profileError = ''; return this.status();
-    });
   }
   async uploadAsset(digest, bytes, type) {
     await this.token();

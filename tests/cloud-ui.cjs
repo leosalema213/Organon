@@ -44,7 +44,7 @@ let app;
         if (endpoint.startsWith('/auth/v1/') && endpoint !== '/auth/v1/logout') return respond({ access_token: 'synthetic-access-token', refresh_token: 'synthetic-refresh-token', expires_in: 3600, user: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', email: body.email } });
         if (endpoint === '/auth/v1/logout') return respond(null);
         if (endpoint === '/rest/v1/organon_sync_state') return respond(server.row ? [server.row] : []);
-        if (endpoint === '/rest/v1/organon_profiles') return respond([]);
+        if (endpoint === '/rest/v1/organon_profiles') { if (body) server.profile = body; return respond(server.profile ? [server.profile] : []); }
         if (endpoint.includes('/object/list/')) return respond([...server.assets.keys()].map(name => ({ name })));
         if (endpoint.includes('/object/organon-assets/')) { server.uploads++; server.assets.set(endpoint.split('/').at(-1), body); return respond({}); }
         if (endpoint === '/rest/v1/rpc/organon_commit_snapshot') { server.row = { payload: body.p_payload, checksum: body.p_checksum, revision: 1, updated_at: new Date().toISOString() }; return respond({ ok: true, current: server.row }); }
@@ -57,9 +57,13 @@ let app;
   await page.getByRole('button', { name: 'Preferências', exact: true }).click(); await page.getByRole('tab', { name: 'Conta', exact: true }).click();
   await page.getByRole('button', { name: 'Entrar ou criar conta', exact: true }).click();
   await page.getByRole('tab', { name: 'Criar conta', exact: true }).click();
+  await page.getByLabel('Nome', { exact: true }).fill('Pessoa sintética');
+  await page.getByLabel('Apelido', { exact: true }).fill('Teste');
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByLabel('E-mail', { exact: true }).fill('test@example.invalid');
   await page.getByLabel('Senha', { exact: true }).fill('synthetic-password-123');
-  await page.getByRole('button', { name: 'Criar minha conta', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByRole('button', { name: 'Pular foto e criar conta', exact: true }).click();
   await page.getByText('test@example.invalid', { exact: true }).waitFor({ timeout: 10000 }).catch(async error => { await page.screenshot({ path: path.join(output, 'account-error.png') }); throw new Error(error.message + '\n' + (await page.locator('.form-error').allTextContents()).join('\n')); });
   await page.getByText('Dados sincronizados', { exact: true }).first().waitFor();
   assert.equal(await app.evaluate(() => globalThis.accountTest.row.payload.plans[0].name), fixture.plans[0].name);

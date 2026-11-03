@@ -26,6 +26,53 @@ test('closed transport ignores renderer identity/status and targets UUID invitat
   assert.equal(calls[0].token, 'main-only');
   await assert.rejects(service.dispatch('arbitrarySQL', {}));
 });
+test('inbox actions discard renderer ownership and do not mutate memberships', async () => {
+  const { service, calls, events } = setup();
+  for (const action of ['inbox', 'readAll', 'deleteAllNotices']) await service.dispatch(action, { user_id: recipientId, orgId, id: recipientId });
+  await service.dispatch('deleteNotice', { id: recipientId, user_id: orgId });
+  await service.dispatch('roster', { orgId, owner_id: recipientId });
+  assert.deepEqual(calls.slice(0, 3).map(c => c.body.p_payload), [{}, {}, {}]);
+  assert.deepEqual(calls[3].body.p_payload, { id: recipientId });
+  assert.deepEqual(calls[4].body.p_payload, { orgId });
+  assert.equal(events.length, 3);
+  assert.ok(calls.every(c => !['revoke', 'respond'].includes(c.body.p_action)));
+  await assert.rejects(service.dispatch('deleteNotice', { id: 'invalid' }), /Identificador/);
+});
+
+test('roster loads only authenticated profile photos, verifies bytes and rechecks access', async () => {
+  const { service, cloud } = setup();
+  const bytes = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64');
+  const hash = require('node:crypto').createHash('sha256').update(bytes).digest('hex');
+  const member = { id: recipientId, user_id: recipientId, name: 'Pessoa sintética', avatar_hash: hash };
+  const paths = []; let reads = 0;
+  cloud.request = async (path, options) => {
+    paths.push(path);
+    if (path.includes('/rpc/')) { reads++; return [member]; }
+    assert.match(path, new RegExp(`/storage/v1/object/authenticated/organon-assets/${recipientId}/${hash}\\?cacheNonce=`));
+    assert.equal(options.headers['Cache-Control'], 'no-cache'); assert.equal(options.token, 'main-only');
+    return bytes;
+  };
+  const result = await service.dispatch('roster', { orgId, avatar: 'https://untrusted.invalid/photo' });
+  assert.equal(reads, 2); assert.equal(paths.length, 3);
+  assert.equal(result[0].avatar, 'data:image/webp;base64,' + bytes.toString('base64'));
+  assert.equal(Object.hasOwn(result[0], 'avatar_hash'), false);
+});
+
+test('missing or corrupt roster photos use placeholders; revoked access does not return images', async () => {
+  const { service, cloud } = setup();
+  const bytes = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64');
+  const hash = require('node:crypto').createHash('sha256').update(bytes).digest('hex');
+  let corrupt = true, revoke = false, reads = 0;
+  cloud.request = async path => {
+    if (path.includes('/rpc/')) { if (++reads > 1 && revoke) throw new Error('revoked'); return [{ id: recipientId, user_id: recipientId, avatar_hash: hash }, { id: orgId, user_id: orgId }]; }
+    return corrupt ? Buffer.from('invalid') : bytes;
+  };
+  const result = await service.dispatch('roster', { orgId });
+  assert.deepEqual(result.map(m => m.avatar), [null, null]);
+  reads = 0; corrupt = false; revoke = true;
+  await assert.rejects(service.dispatch('roster', { orgId }), /revoked/);
+});
+
 test('responses and permission updates require explicit expected revision', async () => {
   const { service, calls } = setup();
   await assert.rejects(service.dispatch('respond', { id: orgId, response: 'accepted' }));

@@ -12,7 +12,7 @@ const MODULES = new Set(['teams', 'kanban', 'financeiro', 'mei']);
 const OPTIONAL = new Set(['financeiro', 'mei']);
 const EVENT_TYPES = new Set(['changed', 'invalidate', 'resync', 'connection']);
 const CONNECTION_STATUSES = new Set(['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED', 'CONNECTING', 'UNAVAILABLE']);
-const TEAM_ACTIONS = new Set(['list', 'create', 'search', 'members', 'invite', 'respond', 'permissions', 'revoke', 'notifications', 'read', 'catalog', 'resources', 'publish', 'unpublish', 'editResource', 'openResource', 'downloadBook']);
+const TEAM_ACTIONS = new Set(['list', 'create', 'search', 'members', 'roster', 'invite', 'respond', 'permissions', 'revoke', 'notifications', 'inbox', 'read', 'readAll', 'deleteNotice', 'deleteAllNotices', 'catalog', 'resources', 'publish', 'unpublish', 'editResource', 'openResource', 'downloadBook']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HASH = /^[a-f0-9]{64}$/;
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');

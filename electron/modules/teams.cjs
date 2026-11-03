@@ -2,6 +2,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const MODULES = ['notebooks', 'books', 'kanban', 'financeiro'];
 const { createHash } = require('node:crypto');
 const { privateDownloadPath, downloadHeaders, uploadHeaders } = require('../shared-storage.cjs');
+const { checkAvatar } = require('../cloud-profile.cjs');
+const { bucket } = require('../cloud-config.cjs');
 function uuid(value) { if (typeof value !== 'string' || !UUID.test(value)) throw new Error('Identificador inválido.'); return value; }
 function grants(value = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(k => !MODULES.includes(k))) throw new Error('Permissão inválida.');
@@ -45,15 +47,15 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
         await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: 'members', p_payload: p } });
         if (!getResourceCatalog) throw new Error('O catálogo local ainda precisa ser conectado.');
         return getResourceCatalog({ orgId: p.orgId });
-      case 'list': case 'notifications': break;
+      case 'list': case 'notifications': case 'inbox': case 'readAll': case 'deleteAllNotices': break;
       case 'create': p.name = String(input.name || '').trim(); if (!p.name || p.name.length > 100) throw new Error('Informe o nome do espaço.'); break;
       case 'search': p.query = String(input.query || '').trim(); if (p.query.length < 3 || p.query.length > 100) throw new Error('Digite de 3 a 100 caracteres.'); break;
-      case 'members': case 'resources': p.orgId = uuid(input.orgId); break;
+      case 'members': case 'roster': case 'resources': p.orgId = uuid(input.orgId); break;
       case 'invite': p.orgId = uuid(input.orgId); p.recipientId = uuid(input.recipientId); p.grants = grants(input.grants); break;
       case 'respond': p.id = uuid(input.id); if (!['accepted', 'declined'].includes(input.response)) throw new Error('Resposta inválida.'); p.response = input.response; p.revision = revision(input.revision); break;
       case 'permissions': p.grants = grants(input.grants); // fall through
       case 'revoke': p.id = uuid(input.id); p.orgId = uuid(input.orgId); p.revision = revision(input.revision); break;
-      case 'read': p.id = uuid(input.id); break;
+      case 'read': case 'deleteNotice': p.id = uuid(input.id); break;
       case 'editResource':
         p.orgId = uuid(input.orgId); p.resourceId = uuid(input.resourceId); p.module = input.module; p.revision = revision(input.revision);
         if (!['notebooks', 'books'].includes(p.module) || !validateSharedResource) throw new Error('O editor compartilhado ainda precisa ser conectado.');
@@ -82,7 +84,31 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
       if (error.code === 'PT409' || error.code === '40001') { emit({ type: 'invalidate' }); throw new Error('Este registro mudou. Atualize e reveja as alterações antes de salvar.'); }
       throw error;
     }
-    if (!['list', 'notifications', 'search', 'members', 'resources'].includes(action)) emit({ type: 'invalidate' });
+    if (action === 'roster') {
+      const avatars = new Map();
+      // Only fetch paths authorized by the roster RPC; never accept avatar URLs from the renderer.
+      let next = 0, attempted = false;
+      async function loadAvatars() {
+        while (next < result.length) {
+          const member = result[next++];
+          if (!UUID.test(member.user_id || '') || !/^[a-f0-9]{64}$/.test(member.avatar_hash || '')) continue;
+          attempted = true;
+          try {
+            const bytes = await cloud.request(privateDownloadPath(bucket, `${member.user_id}/${member.avatar_hash}`), { token, binary: true, headers: downloadHeaders });
+            checkAvatar(bytes, member.avatar_hash);
+            avatars.set(`${member.user_id}:${member.avatar_hash}`, 'data:image/webp;base64,' + bytes.toString('base64'));
+          } catch { /* Missing, inaccessible or corrupt photos use the placeholder. */ }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(4, result.length) }, loadAvatars));
+      // Recheck membership and hashes after asynchronous downloads, including revocation.
+      if (attempted) result = await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: action, p_payload: p } });
+      return result.map(member => {
+        const { avatar_hash, ...fields } = member;
+        return { ...fields, avatar: avatars.get(`${member.user_id}:${avatar_hash}`) || null };
+      });
+    }
+    if (!['list', 'notifications', 'inbox', 'search', 'members', 'roster', 'resources'].includes(action)) emit({ type: 'invalidate' });
     return result;
   }
   return { dispatch, start, stop };

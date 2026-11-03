@@ -5,13 +5,14 @@ import './modal.css';
 // The shell owns spacing. Full application panels opt out of the padded body.
 export default function Modal({ title, subtitle, onClose, children, small, wide, className = '', actions, panel = false }) {
   const ref = useRef();
+  const closeRef = useRef(onClose); closeRef.current = onClose;
   useEffect(() => {
     const previous = document.activeElement;
     ref.current?.focus();
     const onKey = e => {
       const dialogs = document.querySelectorAll('[role="dialog"]');
       if (dialogs[dialogs.length - 1] !== ref.current) return;
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') closeRef.current();
       if (e.key === 'Tab') {
         const items = [...ref.current.querySelectorAll('button:not(:disabled), input, textarea, select, [tabindex="0"], [contenteditable="true"]')].filter(el => el.offsetParent !== null);
         const first = items[0], last = items[items.length - 1];

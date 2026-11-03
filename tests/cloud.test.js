@@ -24,7 +24,7 @@ function harness() {
     const response = data => new Response(JSON.stringify(data), { status: 200 });
     if (endpoint === '/auth/v1/signup' || endpoint === '/auth/v1/token') {
       const id = body.email?.startsWith('other') ? 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' : 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-      return response({ access_token: 'private-access-token', refresh_token: 'private-refresh-token', expires_in: 3600, user: { id, email: body.email || 'test@example.invalid' } });
+      return response({ access_token: 'private-access-token', refresh_token: 'private-refresh-token', expires_in: 3600, user: { id, email: body.email || 'test@example.invalid', user_metadata: body.data || {} } });
     }
     if (endpoint === '/auth/v1/logout') return response(null);
     if (endpoint === '/rest/v1/organon_profiles') {
@@ -60,7 +60,7 @@ test('cloud images are deduplicated, verified and restore despite JSONB key orde
 
 test('first login links existing local data; edits do not cause requests; unchanged sync skips upload', async () => {
   const h = harness(), cloud = h.create(); await cloud.ready;
-  assert.equal((await cloud.authenticate('signup', 'test@example.invalid', 'test-password')).busy, false);
+  assert.equal((await cloud.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' })).busy, false);
   assert.equal(h.server.uploads, 0); assert.equal(h.server.commits, 0); assert.equal(cloud.status().pending, true);
   const progress = []; cloud.emit = status => { if (status.progress) progress.push(status.progress); };
   await cloud.sync();
@@ -77,7 +77,7 @@ test('first login links existing local data; edits do not cause requests; unchan
 });
 
 test('offline leaves local changes pending and resumes after reconnecting', async () => {
-  const h = harness(), cloud = h.create(); await cloud.authenticate('signup', 'test@example.invalid', 'test-password'); await cloud.sync();
+  const h = harness(), cloud = h.create(); await cloud.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' }); await cloud.sync();
   h.local.plans[0].name = 'Editado offline'; cloud.markDirty(); h.server.offline = true;
   await assert.rejects(cloud.sync(), /Sem conexão/);
   assert.equal(cloud.status().pending, true); assert.equal(h.server.commits, 1);
@@ -85,7 +85,7 @@ test('offline leaves local changes pending and resumes after reconnecting', asyn
 });
 
 test('new profile detects remote data, preserves local copy on download and requires acknowledgment', async () => {
-  const h = harness(), cloud = h.create(); await cloud.authenticate('signup', 'test@example.invalid', 'test-password'); await cloud.sync();
+  const h = harness(), cloud = h.create(); await cloud.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' }); await cloud.sync();
   h.server.row.revision++; h.server.row.payload.plans[0].name = 'Outro computador';
   h.server.row.checksum = packDocument({ ...h.local, plans: [{ ...h.local.plans[0], name: 'Outro computador' }] }).checksum;
   await cloud.sync(); assert(cloud.status().conflict); assert.equal(h.local.plans[0].name, 'Dados locais');
@@ -96,7 +96,7 @@ test('new profile detects remote data, preserves local copy on download and requ
 });
 
 test('concurrent commit cannot silently overwrite another revision; account switching requires choice', async () => {
-  const h = harness(), cloud = h.create(); await cloud.authenticate('signup', 'test@example.invalid', 'test-password'); await cloud.sync();
+  const h = harness(), cloud = h.create(); await cloud.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' }); await cloud.sync();
   h.local.plans[0].name = 'Editado'; h.server.race = true;
   await cloud.sync(); assert(cloud.status().conflict); assert.equal(h.server.commits, 1);
   await cloud.chooseLocal(); assert.equal(h.server.commits, 2);
@@ -108,14 +108,14 @@ test('concurrent commit cannot silently overwrite another revision; account swit
 
 test('lack of secure session storage does not fall back to plaintext', async () => {
   const h = harness(), cloud = h.create(); cloud.safeStorage.isAsyncEncryptionAvailable = async () => false;
-  await assert.rejects(cloud.authenticate('signup', 'test@example.invalid', 'test-password'), /proteção/);
+  await assert.rejects(cloud.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' }), /proteção/);
   assert.equal(fs.existsSync(path.join(h.directory, 'cloud-session.enc')), false);
   assert.equal(h.server.commits, 0);
 });
 
 test('disabled cloud preserves the session file and makes no network requests', async () => {
   const h = harness(), connected = h.create();
-  await connected.authenticate('signup', 'test@example.invalid', 'test-password');
+  await connected.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' });
   const sessionFile = path.join(h.directory, 'cloud-session.enc'), before = fs.readFileSync(sessionFile);
   const cloud = new CloudSync({ directory: h.directory, enabled: false, safeStorage: {}, readData: () => h.local, fetchImpl: async () => { throw new Error('Unexpected network request'); } });
   await cloud.ready; assert.equal(cloud.status().enabled, false); assert.equal(cloud.status().user, null);
@@ -131,7 +131,7 @@ test('authentication completes before a slow upload; sync progress is public and
     if (new URL(url).pathname.includes('/object/organon-assets/')) { started(); await gate; }
     return original(url, options);
   };
-  await cloud.authenticate('signup', 'test@example.invalid', 'test-password');
+  await cloud.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' });
   assert.equal(h.server.uploads, 0); assert.equal(cloud.status().busy, false);
   const sync = cloud.sync(); await uploading;
   try {
@@ -145,7 +145,7 @@ test('authentication completes before a slow upload; sync progress is public and
 test('account profile and private avatar survive restart, edit/removal and account switching without changing study data', async () => {
   const h = harness(), cloud = h.create(), before = structuredClone(h.local);
   const photo = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA';
-  await cloud.authenticate('signup', 'test@example.invalid', 'test-password');
+  await cloud.authenticate('signup', 'test@example.invalid', 'test-password', { name: 'Pessoa sintética', nickname: 'Teste' });
   await cloud.updateProfile({ name: ' Pessoa ', nickname: ' Apelido ', avatar: photo });
   assert.equal(cloud.status().user.name, 'Pessoa'); assert.equal(cloud.status().user.nickname, 'Apelido'); assert.equal(cloud.status().user.avatar, photo);
   assert.deepEqual(h.local, before); assert.equal(h.server.commits, 0);
@@ -160,6 +160,32 @@ test('account profile and private avatar survive restart, edit/removal and accou
   await assert.rejects(cloud.updateProfile({ name: '', nickname: '', avatar: 'data:image/webp;base64,PHNjcmlwdD4=' }));
   await cloud.signOut(); await cloud.authenticate('login', 'other@example.invalid', 'test-password');
   assert.equal(cloud.status().user.name, ''); assert.equal(cloud.status().user.avatar, null);
+});
+
+test('signup requires identity before contacting Auth and persists profile without changing study data', async () => {
+  const h = harness(), cloud = h.create(), before = structuredClone(h.local);
+  await assert.rejects(cloud.authenticate('signup', 'new@example.invalid', 'test-password'), /nome/);
+  await assert.rejects(cloud.authenticate('signup', 'new@example.invalid', 'test-password', { name: ' ', nickname: 'Teste' }), /nome e apelido/);
+  await assert.rejects(cloud.authenticate('signup', 'new@example.invalid', 'test-password', { name: 'Teste', nickname: ' ', avatar: null }), /nome e apelido/);
+  assert.equal(h.server.calls, 0);
+  await cloud.authenticate('signup', 'new@example.invalid', 'test-password', { name: ' Pessoa ', nickname: ' Teste ', avatar: null });
+  assert.equal(cloud.status().user.name, 'Pessoa'); assert.equal(cloud.status().user.nickname, 'Teste');
+  assert.equal(cloud.status().user.avatar, null); assert.equal(h.server.profile.name, 'Pessoa');
+  assert.equal(cloud.meta.signupProfile, undefined); assert.deepEqual(h.local, before);
+});
+
+test('a profile write failure after signup keeps the account and retries after restart', async () => {
+  const h = harness(), cloud = h.create(), original = cloud.fetch;
+  cloud.fetch = async (url, options) => {
+    if (url.includes('/rest/v1/organon_profiles') && options.method === 'POST') throw new Error('offline');
+    return original(url, options);
+  };
+  const result = await cloud.authenticate('signup', 'new@example.invalid', 'test-password', { name: 'Pessoa', nickname: 'Teste' });
+  assert.ok(result.user); assert.match(result.profileError, /perfil será reenviado/);
+  assert.equal(result.user.name, 'Pessoa'); assert.ok(cloud.meta.signupProfile);
+  const restarted = h.create(); await restarted.ready; await restarted.sync();
+  assert.equal(restarted.status().user.nickname, 'Teste'); assert.equal(h.server.profile.name, 'Pessoa');
+  assert.equal(restarted.meta.signupProfile, undefined);
 });
 
 test('parallel module requests share one token refresh', async () => {

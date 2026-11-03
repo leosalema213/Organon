@@ -73,6 +73,8 @@ let app;
       if (module === 'teams') {
         if (action === 'list') return [workspace];
         if (action === 'notifications' || action === 'members') return [];
+        if (action === 'inbox') return { notifications: [], invitations: [], unreadCount: 0 };
+        if (action === 'roster') return [{ id: workspace.id, user_id: user.id, name: 'Pessoa sintética', nickname: 'Teste', status: 'accepted', role: 'owner' }];
         if (action === 'catalog') return { notebooks: [{ id: personal.id, name: personal.name }], books: [], kanban: [{ id: board.id, name: board.name }] };
         if (action === 'resources') return [structuredClone(shared)];
         if (action === 'openResource' && payload.resourceId === personal.id) return structuredClone(shared);
@@ -104,7 +106,8 @@ let app;
   await nav.getByRole('button', { name: 'Quadros', exact: true }).click();
   await page.getByRole('button', { name: 'Cartão preservado', exact: true }).waitFor();
   await nav.getByRole('button', { name: 'Equipes', exact: true }).click();
-  await page.getByRole('heading', { name: 'Notificações e convites', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Membros', exact: true }).waitFor();
+  await page.locator('.teams-row').getByText('Pessoa sintética', { exact: true }).waitFor();
   await nav.getByRole('button', { name: 'Cadernos', exact: true }).click();
   await page.getByRole('button', { name: 'Cadernos compartilhados', exact: true }).click();
   await page.getByRole('button', { name: 'Caderno compartilhado sintético', exact: true }).click();
