@@ -11,7 +11,6 @@
 .preference-section+.preference-section { margin-top:25px;padding-top:22px;border-top:1px solid #eeeaf2; }
 .preferences-footer { display:flex;align-items:center;justify-content:space-between;gap:15px;padding:var(--modal-body-space) 23px;border-top:1px solid #e9e6ef;flex-shrink:0; }
 .preferences-footer>span { font-size:9px;color:#aaa; }
-.preferences-footer .secondary { font-size:11px;padding:8px 14px; }
 .theme-modes { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:13px; }
 .theme-modes button { display:flex;align-items:center;justify-content:center;gap:7px;padding:12px 6px;border:1px solid #e5e1eb;border-radius:7px;background:#faf9fc;color:#8f8598;font-size:11px; }
 .theme-modes button.selected { border-color:#a291bb;background:#f1ecf8;color:#6e5188; }

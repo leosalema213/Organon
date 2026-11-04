@@ -88,18 +88,21 @@ async function rendered(number) {
   assert.equal(await page.getByLabel('Páginas por tela').inputValue(), '2'); assert.equal(await page.getByLabel('Zoom do PDF').inputValue(), '1.5');
   assert.equal(await page.getByLabel('Contraste de leitura').inputValue(), 'night');
   await page.getByRole('button', { name: 'Fechar leitor', exact: true }).click();
-  await page.getByRole('button', { name: 'Vincular Reading test a planos', exact: true }).click();
+  await page.getByRole('button', { name: 'Opções de Reading test', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Editar livro', exact: true }).click();
   await page.getByLabel('Título', { exact: true }).fill('   ');
-  assert.equal(await page.getByRole('button', { name: 'Salvar vínculos', exact: true }).isDisabled(), true);
-  await page.getByLabel('Título', { exact: true }).fill('Reading test');
+  assert.equal(await page.getByRole('button', { name: 'Salvar alterações', exact: true }).isDisabled(), true);
+  await page.getByLabel('Título', { exact: true }).fill('  Leitura de teste  ');
   await page.getByRole('checkbox', { name: 'Redes', exact: true }).check(); await page.getByRole('checkbox', { name: 'Linux', exact: true }).check();
-  await page.getByRole('button', { name: 'Salvar vínculos', exact: true }).click();
-  await page.getByRole('button', { name: 'Vincular Independent book a planos', exact: true }).click();
-  await page.getByRole('checkbox', { name: 'Redes', exact: true }).check(); await page.getByRole('button', { name: 'Salvar vínculos', exact: true }).click();
+  await page.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await page.getByRole('heading', { name: 'Leitura de teste', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Opções de Independent book', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Editar livro', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Redes', exact: true }).check(); await page.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
   await page.getByRole('button', { name: 'Planos de estudo', exact: true }).click();
   await page.getByRole('button', { name: 'Livros do plano Redes', exact: true }).click();
   assert.equal(await page.locator('.reading-card').count(), 2); assert.equal(await page.getByLabel('Livros por plano').inputValue(), plan.id);
-  await page.getByRole('button', { name: 'Concluir livro Reading test', exact: true }).click();
+  await page.getByRole('button', { name: 'Concluir livro Leitura de teste', exact: true }).click();
   saved = await waitSaved(data => data.books[0].completedAt === dayKey(), 'Completion not saved');
   assert.equal(saved.books[0].page, 1); assert.equal(saved.books[0].furthestPage, 4);
   await page.getByRole('button', { name: 'Meu progresso', exact: true }).click();
@@ -110,6 +113,18 @@ async function rendered(number) {
   await page.getByRole('heading', { name: 'Livros lidos neste período · 1', exact: true }).waitFor();
   await openBooks(); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(840, 620));
   assert.equal(await page.locator('.books-filters').evaluate(el => el.scrollWidth > el.clientWidth), false);
+  const controlSizes = await page.locator('.books-heading button, .books-filters > input, .books-filters > select').evaluateAll(
+    controls => controls.map(control => [control.offsetHeight, getComputedStyle(control).fontSize])
+  );
+  assert.deepEqual(controlSizes, Array.from({ length: 4 }, () => [32, '12px']));
+  const actionsFit = await page.locator('.reading-actions').evaluateAll(rows => rows.every(row => {
+    const bounds = row.getBoundingClientRect();
+    return row.children.length === 3 && [...row.children].every(button => {
+      const rect = button.getBoundingClientRect();
+      return rect.top === bounds.top && rect.bottom === bounds.bottom && rect.right <= bounds.right;
+    });
+  }));
+  assert.equal(actionsFit, true, 'Book actions should fit in one row');
   await page.screenshot({ path: path.join(output, 'books-library-small.png') });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1260, 850));
   const backup = path.join(directory, 'complete.json'); await choose([], backup); await preferences();
@@ -137,7 +152,7 @@ async function rendered(number) {
   saved = await state(); assert.deepEqual(saved.books, portable.books);
   for (const book of saved.books) assert.equal(fs.readFileSync(path.join(target, 'books', book.hash + '.pdf')).toString('base64'), portable.bookFiles[book.hash]);
   await app.close(); app = null; await launch(target); await openBooks();
-  await page.getByRole('button', { name: 'Ler Reading test', exact: true }).click(); await rendered(1);
+  await page.getByRole('button', { name: 'Ler Leitura de teste', exact: true }).click(); await rendered(1);
   await page.getByRole('button', { name: 'Fechar leitor', exact: true }).click();
   // A user-supplied PDF is optional and never bundled with the repository or synthetic fixtures.
   if (process.env.ORGANON_REFERENCE_PDF) {

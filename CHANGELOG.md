@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.6.2
+
+- Editar o título e os planos vinculados pelo menu de opções do cartão, que também reúne a exclusão.
+- Padronizar botões, campos e seletores com medidas compactas e alinhar os filtros da biblioteca às ações do cabeçalho.
+
 ## 0.6.1
 
 - Voltar à carta anterior ao desfazer uma resposta, inclusive no fim da fila.

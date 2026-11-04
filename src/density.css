@@ -4,6 +4,8 @@
   --stats-value:25px; --card-gap:12px; --card-header-y:12px; --card-x:15px;
   --block-height:38px; --block-y:6px; --block-font:12px; --card-footer-y:8px;
   --brand-height:78px; --player-height:64px;
+  --control-height:32px; --control-font:12px; --control-padding-x:11px;
+  --control-line-height:16px; --control-icon-size:14px;
 }
 :root[data-density="minimal"] {
   --sidebar-width:186px; --header-height:42px; --page-x:18px; --page-y:12px;
@@ -35,7 +37,19 @@
 .content { padding:var(--page-y) var(--page-x) 24px; }
 .page-heading { margin-bottom:var(--section-gap);align-items:center; }
 .page-heading h1 { font-size:var(--heading-size);letter-spacing:-.5px; }
-.page-heading>.primary { margin:0;padding:8px 12px;font-size:11px; }
+.page-heading>.primary { margin:0; }
+.primary,.secondary,.danger-button,.modal-actions>button,
+input:where(:not([type=checkbox],[type=radio],[type=range],[type=color],[type=file],[type=image])),select {
+  min-height:var(--control-height);
+  padding:4px var(--control-padding-x);
+  font-size:var(--control-font);
+  line-height:var(--control-line-height);
+}
+:is(.primary,.secondary,.danger-button,.modal-actions>button)>svg {
+  width:var(--control-icon-size);
+  height:var(--control-icon-size);
+  flex:none;
+}
 .stats-grid { gap:12px;margin-bottom:var(--section-gap); }
 .stat-card { padding:var(--stats-padding);min-height:var(--stats-height);position:relative; }
 .stat-label { font-size:9px;letter-spacing:.7px; }
@@ -47,7 +61,7 @@
 .section-heading h2 { font-size:14px; }
 .date-switch { font-size:11px; }
 .filter-row { margin-bottom:12px; }
-.tabs button { font-size:11px;padding:6px 10px; }
+.tabs button { min-height:calc(var(--control-height) - 8px);font-size:11px;line-height:var(--control-line-height);padding:2px 8px; }
 .plan-list { gap:var(--card-gap); }
 .study-card-header { padding:var(--card-header-y) var(--card-x);gap:10px; }
 .study-card-header .plan-icon { width:32px;height:32px;border-radius:8px; }
@@ -78,7 +92,6 @@
 .update-body progress { width:100%;height:6px;margin-top:20px;accent-color:#888; }
 .update-body>span { display:block;text-align:right;font-size:10px;margin-top:3px; }
 .update-settings .setting-row { margin-bottom:0; }
-.update-settings .secondary { font-size:11px;padding:8px 10px; }
 .block-editor-form label { margin-bottom:16px; }
 .block-editor-form .muted { font-size:11px; }
 [data-theme="dark"] .density-options button { background:#ffffff03;border-color:#ffffff12;color:#aaa; }
@@ -110,14 +123,11 @@
   :root { --sidebar-width:59px;--page-x:12px;--page-y:14px; }
   .brand>div { display:none; }
   .page-heading h1 { font-size:19px; }
-  .page-heading>.primary { font-size:10px;gap:5px; }
-  .page-heading>.primary svg { width:14px; }
   .stat-label { font-size:6px;letter-spacing:.2px; }
   .stat-card p { font-size:8px; }
   .stat-card>strong { font-size:21px; }
   .stat-icon { display:none; }
   .stats-grid { gap:6px; }
-  .tabs button { font-size:9px;padding:6px; }
   .study-block { gap:6px;padding-left:2px;padding-right:2px; }
   .block-number { display:none; }
   .block-name strong { font-size:10px; }

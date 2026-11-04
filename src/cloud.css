@@ -11,7 +11,7 @@
 .account-form label { display:grid; gap:8px; font-size:12px; color:var(--muted); }
 .account-form input { width:100%; min-height:43px; border-radius:9px; }
 .modal .modal-body .account-actions { flex-direction:column; align-items:stretch; margin-top:0; }
-.account-actions > .primary { justify-content:center; min-height:43px; }
+.account-actions > .primary { justify-content:center; }
 .account-offline { display:flex; justify-content:center; align-items:center; gap:8px; border:0; padding:9px; background:transparent; color:var(--muted); font-size:12px; }
 .cloud-heading { display:flex; align-items:center; gap:13px; margin-bottom:20px; }
 .cloud-heading p { overflow-wrap:anywhere; }

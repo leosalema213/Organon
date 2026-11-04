@@ -1,7 +1,6 @@
 .anki-section { --border: var(--line); --surface: #fff; max-width: 1100px; margin: 0 auto; }
 html[data-theme=dark] .anki-section { --surface: #191919; }
 html[data-palette] .anki-section { --surface: var(--custom-surface, #191919); }
-.anki-section > .page-heading .primary { padding:8px 12px; font-size:11px; }
 .anki-actions, .anki-footer, .anki-review-meta, .anki-search { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .anki-actions button, .anki-footer button, .anki-review-meta button { display: inline-flex; align-items: center; gap: 7px; font-size:12px; }
 .anki-tabs { margin: 24px 0; }
@@ -16,7 +15,7 @@ html[data-palette] .anki-section { --surface: var(--custom-surface, #191919); }
 .anki-breadcrumb { display:flex; align-items:center; gap:8px; min-width:0; font-size:12px; font-weight:500; }
 .anki-breadcrumb button { font-size:inherit; font-weight:inherit; padding:0; flex-shrink:0; }.anki-breadcrumb > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .anki-breadcrumb > svg { color:var(--muted); }
-.anki-undo.secondary { display:inline-flex; align-items:center; gap:7px; margin-top:6px; font-size:12px; line-height:1.2; }.anki-undo svg { display:block; }
+.anki-undo.secondary { display:inline-flex; align-items:center; gap:7px; margin-top:6px; }.anki-undo svg { display:block; }
 .anki-new { color: #5e91cc; } .anki-learn { color: #bd7753; } .anki-due { color: #5caa85; }
 .anki-empty { padding: 40px 24px; text-align: center; color: var(--muted); }
 .anki-footer { justify-content: space-between; margin: 22px 0; font-size: 13px; color: var(--muted); }

@@ -11,9 +11,9 @@
 .modal .modal-body > :is(form,.confirm-text,.update-body,.note-delete-body,.icon-picker-body,.block-kind-form) { padding:0; }
 .modal .modal-body > p + p { margin-top:8px; }
 .modal .modal-body .modal-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; border-top:1px solid var(--line); padding:var(--modal-body-space) 0 0; margin:var(--modal-body-space) 0 0; }
-.modal .modal-body .modal-actions > button { flex:0 0 auto; width:auto; min-width:0; padding:7px 11px; font-size:12px; }
+.modal .modal-body .modal-actions > button { flex:0 0 auto; width:auto; min-width:0; }
 .modal .modal-body .editor-form > label { margin-bottom:12px; }
-.modal .modal-body label > :is(input:not([type=checkbox]):not([type=color]),textarea,select) { margin-top:6px; font-size:13px; }
+.modal .modal-body label > :is(input:not([type=checkbox]):not([type=color]),textarea,select) { margin-top:6px; }
 .modal .modal-body :is(.anki-editor,.reminder-form,.journal-book-form,.book-link-form) > label:first-child { margin-top:0; }
 .modal .modal-body .anki-editor fieldset { margin:12px 0; padding:10px 12px; }
 .modal .modal-body .anki-editor label { margin:10px 0; }

@@ -48,8 +48,11 @@ Preserve planos, anotações, imagens, histórico e preferências do usuário ao
 
 ## Padrão visual
 
+- Use os controles compactos de `src/density.css`, com o Financeiro como referência. Botões `.primary` e `.secondary`, ações de modal, inputs de uma linha e selects compartilham altura mínima de 32 px, fonte de 12 px e ícones de ação de 14 px. Em barras de filtros, alinhe os controles e permita quebra de linha em janelas estreitas. Use os tokens `--control-*` para novos controles equivalentes. Reserve medidas locais para controles especializados, como botões de ícone, leitor e editor de texto.
+
 - Modais usam o componente compartilhado `src/Modal.jsx`, com espaçamento compacto e corpo/ações consistentes. Não acrescente padding duplicado nos formulários. Painéis completos podem usar a variante `panel`.
 - O modo dark usa superfícies de cinza neutro, sem cinza azulado. Preserve a identidade visual, a escala tipográfica e os padrões existentes de busca/controles ao adicionar seções. Paletas personalizadas explícitas continuam respeitadas.
 - Toda tela nova deve seguir primeiro o layout e os componentes existentes da aplicação. A identidade da marca usa acentos pastel: verde para acerto/conclusão, vermelho suave para erro e azul discreto para progresso, sem fundos saturados ou bordas pesadas.
 - Menus de ações em pop-up usam `src/PopupMenu.jsx`, ancorados ao botão, sem fundo de modal, com teclado/Esc e clique fora. Controles novos usam português: carta, baralho, configuração e marcadores; preserve os identificadores e o conteúdo original dos dados importados.
+- Ao adicionar ações a cartões, confira o encaixe na menor largura suportada. Mantenha as ações principais visíveis e reúna ações secundárias, como editar e excluir, em um menu de opções quando disputarem espaço na mesma linha.
 - Edição de texto compartilha `FormatToolbar`/`richExtensions` de `src/RichText.jsx`; campos compactos usam `src/RichTextField.jsx`. Preserve a seleção, o desfazer/refazer, a mídia e o HTML importado. Cores de texto escolhidas pelo usuário são mantidas nos dois temas; fundos do modo dark continuam neutros.
