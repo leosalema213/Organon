@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.6.0
+
+- Criar cartas Anki durante a leitura, reutilizando os baralhos vinculados aos planos do livro e permitindo escolher ou criar um baralho sem sair do leitor.
+- Recuperar o preenchimento da carta ao reabrir após clique fora ou Esc, com botão Limpar e espaçamento equilibrado nas ações.
+- Reordenar listas dos quadros pelo cabeçalho, com encaixe e deslocamento animado durante o arraste, rolagem nas bordas e restauração em caso de falha.
+- Aplicar o mesmo encaixe animado aos cartões, na mesma coluna ou entre colunas, com salvamento ao soltar.
+- Padronizar o respiro das ações nas modais e preservar o espaço inferior em formulários com rolagem.
+- Reaproveitar filtros, agrupamentos e marcadores dos cartões; evitar renderizações de Quadros causadas pelo cronômetro e executar a animação de rolagem somente nas bordas.
+- Padronizar a escala de títulos e valores entre telas e plugins; posicionar Livros compartilhados junto à importação.
+- Exibir na sidebar as cartas de aprendizagem/revisão vencidas, sem contar cartas novas nem executar consultas periódicas.
+- Compartilhar livros selecionados e cópias publicadas por membros, com autoria protegida, avisos de novos compartilhados e sincronização explícita dos livros autorizados. Contrato aplicado e validado no servidor com dados sintéticos e rollback.
+
 ## 0.5.9
 
 - Cadastro em etapas com nome/apelido obrigatórios, foto opcional e reenvio de perfil após falha de conexão.

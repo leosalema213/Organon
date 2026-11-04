@@ -8,7 +8,6 @@
 .block-kind-form label { display:grid; gap:8px; font-size:12px; color:var(--muted); }
 .block-kind-form fieldset { border:0; padding:0; margin:0; min-width:0; }
 .block-kind-form legend { font-size:12px; color:var(--muted); margin-bottom:8px; }
-.block-kind-form .modal-actions { margin-left:-26px; margin-right:-26px; }
 .block-kind-list { padding:18px 24px 24px; display:grid; gap:8px; overflow:auto; }
 .block-kind-list button { justify-content:flex-start; min-width:0; }
 .block-kind-list button span { flex:1; text-align:left; white-space:normal; overflow-wrap:anywhere; }

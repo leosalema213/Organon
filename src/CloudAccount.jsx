@@ -37,9 +37,9 @@ export function CloudIndicator({ status }) {
   return <span className="local-pill" title={status?.user ? syncMessage(status) : 'Dados salvos neste computador'}><span className="live-dot" />{!status?.user ? 'LOCAL' : status.busy ? 'SINCRONIZANDO' : status.error || status.pending ? 'ENVIO PENDENTE' : status.conflict ? 'CONFERIR CÓPIAS' : 'CONECTADO'}</span>;
 }
 
-export function useCloudAccount(ready, { flush, restore }) {
+export function useCloudAccount(ready, { flush, restore, refreshShared }) {
   const [status, setStatus] = useState(null), [open, setOpen] = useState(false), [error, setError] = useState('');
-  const callbacks = useRef(); callbacks.current = { flush, restore };
+  const callbacks = useRef(); callbacks.current = { flush, restore, refreshShared };
   useEffect(() => {
     if (!ready || !window.desktop?.cloud) return;
     let mounted = true;
@@ -70,7 +70,7 @@ export function useCloudAccount(ready, { flush, restore }) {
       if (value?.user) { setOpen(false); call(() => window.desktop.cloud.sync()); }
       return value;
     },
-    sync: () => call(async () => { if (!await callbacks.current.flush(false)) throw new Error('Não foi possível salvar os dados locais.'); return window.desktop.cloud.sync(); }),
+    sync: () => call(async () => { if (!await callbacks.current.flush(false)) throw new Error('Não foi possível salvar os dados locais.'); const result = await window.desktop.cloud.sync(); await callbacks.current.refreshShared?.(); return result; }),
     signOut: () => call(() => window.desktop.cloud.signOut()),
     updateProfile: value => call(() => window.desktop.cloud.updateProfile(value)),
     chooseLocal: () => call(async () => { if (!await callbacks.current.flush(false)) throw new Error('Não foi possível salvar os dados locais.'); return window.desktop.cloud.chooseLocal(); }),
@@ -121,9 +121,11 @@ export function AccountDialog({ account, Modal }) {
       {mode === 'signup' && step === 2 && <><p>Você pode escolher uma foto agora ou adicionar depois no seu perfil.</p><div className="profile-photo"><ProfileAvatar user={{ name, nickname, avatar }} /><label className="secondary file-label">Escolher foto<input ref={firstField} type="file" accept="image/png,image/jpeg,image/webp" disabled={disabled} onChange={photo} /></label>{avatar && <button type="button" className="secondary" disabled={disabled} onClick={() => setAvatar(null)}>Remover foto</button>}</div></>}
       {photoError && <p className="form-error" role="alert">{photoError}</p>}
       {account.error && <p className="form-error" role="alert">{account.error}</p>}
-      <button className="primary" type="submit" disabled={disabled || (mode === 'signup' && step === 0 && (!name.trim() || !nickname.trim()))}>{disabled ? 'Aguarde…' : mode === 'signup' ? step < 2 ? 'Continuar' : avatar ? 'Criar minha conta' : 'Pular foto e criar conta' : 'Entrar na minha conta'}</button>
-      {mode === 'signup' && step > 0 && <button className="secondary" type="button" disabled={disabled} onClick={() => setStep(value => value - 1)}>Voltar</button>}
-      <button className="account-offline" type="button" onClick={account.close} disabled={disabled}><CloudOff size={14} />Continuar offline</button>
+      <div className="modal-actions account-actions">
+        <button className="primary" type="submit" disabled={disabled || (mode === 'signup' && step === 0 && (!name.trim() || !nickname.trim()))}>{disabled ? 'Aguarde…' : mode === 'signup' ? step < 2 ? 'Continuar' : avatar ? 'Criar minha conta' : 'Pular foto e criar conta' : 'Entrar na minha conta'}</button>
+        {mode === 'signup' && step > 0 && <button className="secondary" type="button" disabled={disabled} onClick={() => setStep(value => value - 1)}>Voltar</button>}
+        <button className="account-offline" type="button" onClick={account.close} disabled={disabled}><CloudOff size={14} />Continuar offline</button>
+      </div>
     </form>
   </Modal>;
 }

@@ -75,7 +75,6 @@ body:has([role="dialog"][aria-modal="true"]) .main-scroll { overflow:hidden; }
 .note-delete-body>svg { color:#bb7373;margin-bottom:12px; }
 .note-delete-body p { color:#999;font-size:12px;margin-bottom:5px; }
 .note-delete-body strong { color:#555;font-weight:600;word-break:break-word; }
-.note-delete-body .modal-actions { margin:20px 0 0!important; }
 .danger-button { color:#fff;background:#af555b;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:600; }
 .danger-button:hover { color:#fff;background:#98434a; }
 .notes-count { font-size:9px;color:#999;margin-left:2px; }

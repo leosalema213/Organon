@@ -14,9 +14,24 @@ const readingState=book=>Object.fromEntries(['page','pageCount','furthestPage','
 export function useBusiness(user) {
   const plugins=usePlugins(),[spaces,setSpaces]=useState([]),[selected,setSelected]=useState(null),[error,setError]=useState(''),[notices,setNotices]=useState(0);
   const epoch=useRef(0),refreshSequence=useRef(0),listeners=useRef(new Map());
+  const syncs=useRef(new Map()),identity=useRef(user?.id);identity.current=user?.id;
   const api=useMemo(()=>({
     call:async(module,action,payload={})=>{try{if(!window.desktop?.modules)throw new Error('Disponível no aplicativo para Windows.');return await window.desktop.modules.call(module,action,payload);}catch(error){throw cleanError(error);}},
     subscribe:(module,listener)=>{const set=listeners.current.get(module)||new Set();set.add(listener);listeners.current.set(module,set);return()=>set.delete(listener);},
+    refresh:()=>{for(const callbacks of listeners.current.values())for(const callback of callbacks)callback({type:'invalidate'});},
+    syncShared:orgId=>{
+      const userId=identity.current,key=`${userId}:${orgId}`;
+      if(syncs.current.has(key))return syncs.current.get(key);
+      const check=()=>{if(identity.current!==userId)throw new Error('A conta mudou. Sincronize novamente.');};
+      const job=(async()=>{
+        check();const rows=await api.call('teams','resources',{orgId});check();
+        for(const row of rows){
+          if(row.module==='books'){check();await api.call('teams','downloadBook',{orgId,resourceId:row.resource_id});check();}
+        }
+        return rows;
+      })().finally(()=>syncs.current.delete(key));
+      syncs.current.set(key,job);return job;
+    },
   }),[]);
   useEffect(()=>window.desktop?.modules?.onChanged(event=>{for(const callback of listeners.current.get(event.module)||[])callback(event);}),[]);
   useEffect(()=>{
@@ -31,7 +46,8 @@ export function useBusiness(user) {
       setNotices(inboxResult.status==='fulfilled'?inboxResult.value.unreadCount||0:0);setError('');
     }catch(error){if(epoch.current===current&&sequence===refreshSequence.current)setError(error.message);}};
     refresh();const stop=api.subscribe('teams',event=>{if(event.type!=='connection')refresh();});
-    return()=>{epoch.current++;stop();};
+    window.addEventListener('focus',refresh);window.addEventListener('online',refresh);
+    return()=>{epoch.current++;stop();window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);};
   },[api,user?.id]);
   const workspace=spaces.find(s=>s.id===selected)||null;
   const installedScope=plugins.installed.map(plugin=>plugin.id).sort().join(':');
@@ -44,7 +60,7 @@ export function WorkspaceSelector({business}) {
   return <select className="business-space" aria-label="Espaço dos módulos" value={business.workspace?.id||''} onChange={event=>business.select(event.target.value)}><option value="">Selecione um espaço</option>{business.spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select>;
 }
 
-export function SharedResources({api,user,workspace,module,onBack,notify,Modal}) {
+export function SharedResources({api,user,workspace,module,onBack,notify,Modal,onAnki}) {
   const [items,setItems]=useState([]),[opened,setOpened]=useState(null),[draft,setDraft]=useState(null),[pageId,setPageId]=useState(null);
   const [reading,setReading]=useState(null),[editing,setEditing]=useState(false),[stale,setStale]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [readingError,setReadingError]=useState(false);
@@ -61,6 +77,9 @@ export function SharedResources({api,user,workspace,module,onBack,notify,Modal})
     const rows=await api.call('teams','resources',{orgId:workspace.id});
     if(current!==epoch.current)return;
     setItems(rows.filter(row=>row.module===module));
+    setOpened(current=>current&&rows.some(row=>row.module===module&&row.resource_id===current.resource_id)?current:null);
+    setReading(current=>current&&rows.some(row=>row.module==='books'&&row.resource_id===current.id&&row.content.hash===current.hash)?current:null);
+    return rows;
   },[api,user?.id,workspace?.id,module]);
   useEffect(()=>{
     setOpened(null);setDraft(null);setReading(null);setEditing(false);setError('');
@@ -68,11 +87,20 @@ export function SharedResources({api,user,workspace,module,onBack,notify,Modal})
     const stop=api.subscribe('teams',event=>{
       if(event.type==='connection')return;
       if(editingRef.current)setStale(true);
-      else {setOpened(null);setReading(null);}
       load().catch(error=>{setItems([]);setOpened(null);setReading(null);setError(error.message);});
     });
-    return()=>{epoch.current++;stop();};
+    const refresh=()=>load().catch(error=>{setItems([]);setOpened(null);setReading(null);setError(error.message);});
+    window.addEventListener('focus',refresh);window.addEventListener('online',refresh);
+    return()=>{epoch.current++;stop();window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);};
   },[load,api]);
+  async function synchronize(){
+    if(busy)return;
+    setBusy(true);setError('');
+    try{
+      await api.syncShared(workspace.id);await load();
+      notify('Compartilhados atualizados. Livros autorizados baixados.');
+    }catch(error){setError(error.message);}finally{setBusy(false);}
+  }
   async function open(row){
     setError('');setBusy(true);
     try{
@@ -91,7 +119,7 @@ export function SharedResources({api,user,workspace,module,onBack,notify,Modal})
     catch(error){setError(error.message);}finally{setBusy(false);}
   }
   const title=module==='books'?'Livros compartilhados':'Cadernos compartilhados',note=draft?.pages.find(page=>page.id===pageId),Reader=reading?.format==='pdf'?PdfReader:ReflowReader;
-  return <section className="shared-page"><header className="page-heading"><div><button className="secondary" onClick={onBack}><ArrowLeft size={14}/>Voltar</button><h1>{title}</h1><p>Recursos publicados neste espaço e autorizados para sua conta.</p></div></header>
+  return <section className="shared-page"><header className="page-heading"><div><button className="secondary" onClick={onBack}><ArrowLeft size={14}/>Voltar</button><h1>{title}</h1><p>Recursos publicados neste espaço e autorizados para sua conta.</p></div>{user&&workspace&&<button className="secondary" disabled={busy} onClick={synchronize}>{busy?'Sincronizando…':'Sincronizar compartilhados'}</button>}</header>
     {!user?<p>Entre na sua conta para acessar os compartilhados.</p>:!workspace?<p>Selecione um espaço ou aceite um convite no sininho de notificações.</p>:<>
       {error&&<p role="alert" className="form-error">{error}</p>}
       <div className="shared-resource-list">{items.map(row=><button className="secondary" key={row.resource_id} disabled={busy} onClick={()=>open(row)}>{row.content.name||row.content.title}</button>)}</div>
@@ -102,6 +130,6 @@ export function SharedResources({api,user,workspace,module,onBack,notify,Modal})
         {note&&<><input aria-label="Título da página compartilhada" maxLength={200} value={note.title} disabled={!editing||busy} onChange={event=>setDraft(current=>current?({...current,pages:current.pages.map(page=>page.id===note.id?{...page,title:event.target.value}:page)}):current)}/><NoteEditor key={note.id} ref={editorRef} note={note} disabled={!editing||busy} notify={notify} onChange={changes=>setDraft(current=>current?({...current,pages:current.pages.map(page=>page.id===note.id?{...page,...changes}:page)}):current)}/></>}
       </section>}
     </>}
-    {reading&&<Suspense fallback={<p role="status">Abrindo livro…</p>}><Reader key={reading.id} book={reading} saveError={readingError} onChange={change=>setReading(current=>typeof change==='function'?change(current):{...current,...change})} onClose={()=>setReading(null)}/></Suspense>}
+    {reading&&<Suspense fallback={<p role="status">Abrindo livro…</p>}><Reader key={reading.id} book={reading} onAnki={onAnki?()=>onAnki(reading):undefined} saveError={readingError} onChange={change=>setReading(current=>typeof change==='function'?change(current):{...current,...change})} onClose={()=>setReading(null)}/></Suspense>}
   </section>;
 }

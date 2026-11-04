@@ -9,6 +9,7 @@ const { version } = require('../package.json');
 const { INSTALLER_NAMES } = require('../electron/branding.cjs');
 const { isProductionVersion } = require('../electron/versions.cjs');
 const { pluginReleaseAssets } = require('./plugin-release-assets.cjs');
+const { CATALOG_URL, MAX_CATALOG, download } = require('../electron/plugins.cjs');
 const REPO = 'leosalema213/app-estudos';
 const root = path.resolve(__dirname, '..');
 function git(...args) { return cp.execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim(); }
@@ -41,7 +42,13 @@ function token() {
     for await (const chunk of fs.createReadStream(file)) aliasHash.update(chunk);
     if (aliasHash.digest('hex') !== digest || fs.readFileSync(file + '.sha256', 'utf8').split(/\s/)[0] !== digest) throw new Error('O instalador de compatibilidade está desatualizado. Execute npm run checksums.');
   }
-  artifacts.push(...pluginReleaseAssets(root, version));
+  const reuseCatalog = process.argv.includes('--reuse-plugin-catalog');
+  const pluginAssets = pluginReleaseAssets(root, version, reuseCatalog);
+  if (reuseCatalog) {
+    const publishedCatalog = await download(CATALOG_URL, MAX_CATALOG);
+    if (!publishedCatalog.equals(fs.readFileSync(pluginAssets[0]))) throw new Error('O catálogo a reutilizar precisa ser idêntico ao da Release pública atual.');
+  }
+  artifacts.push(...pluginAssets);
   const headers = { Authorization: `Bearer ${token()}`, 'User-Agent': 'Organon-release', Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
   async function request(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers }, signal: AbortSignal.timeout(600000) });

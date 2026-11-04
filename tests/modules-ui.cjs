@@ -105,6 +105,8 @@ let app;
   if (!packaged) {
   await nav.getByRole('button', { name: 'Quadros', exact: true }).click();
   await page.getByRole('button', { name: 'Cartão preservado', exact: true }).waitFor();
+  const boardTitle = await page.locator('.kanban-page h1').evaluate(element => ({ actual: getComputedStyle(element).fontSize, expected: getComputedStyle(document.documentElement).getPropertyValue('--heading-size').trim() }));
+  assert.equal(boardTitle.actual, boardTitle.expected, 'Quadros segue a escala de títulos do aplicativo.');
   await nav.getByRole('button', { name: 'Equipes', exact: true }).click();
   await page.getByRole('button', { name: 'Membros', exact: true }).waitFor();
   await page.locator('.teams-row').getByText('Pessoa sintética', { exact: true }).waitFor();
@@ -152,6 +154,7 @@ let app;
   await page.getByRole('dialog', { name: 'Novo lançamento', exact: true }).getByRole('button', { name: 'Cancelar', exact: true }).click();
   await nav.getByRole('button', { name: 'MEI', exact: true }).click();
   await page.getByRole('region', { name: 'Totais anuais', exact: true }).waitFor();
+  assert.equal(await page.locator('.mei-page h1').evaluate(element => getComputedStyle(element).fontSize), financeLayout.title, 'MEI e Financeiro usam o mesmo tamanho de título.');
   await page.locator('.mei-page .page-heading').getByLabel('Ano', { exact: true }).waitFor();
   assert.equal(await page.getByText('Controle salarial + teto MEI', { exact: true }).count(), 0);
   await page.getByRole('button', { name: 'Resumo mensal', exact: true }).click();

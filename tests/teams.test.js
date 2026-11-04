@@ -10,9 +10,11 @@ function setup(dependencies = {}) {
   const cloud = { enabled: true, ready: Promise.resolve(), token: async () => 'main-only', status: () => ({ user: { id: orgId } }), request: async (path, options) => { calls.push({ path, ...options }); return []; } };
   return { calls, events, cloud, service: createService({ cloud, emit: e => events.push(e), ...dependencies }) };
 }
-test('matrix rejects MEI/personal scopes and selected books or finance', () => {
+test('matrix accepts selected books and rejects MEI/personal scopes and selected finance', () => {
   assert.throws(() => grants({ mei: { mode: 'all' } }));
-  for (const module of ['books', 'financeiro']) assert.throws(() => grants({ [module]: { mode: 'selected', ids: [orgId] } }));
+  assert.throws(() => grants({ financeiro: { mode: 'selected', ids: [orgId] } }));
+  assert.deepEqual(grants({ books: { mode: 'selected', ids: [orgId, orgId], write: false } }).books, { mode: 'selected', ids: [orgId], write: false });
+  assert.throws(() => grants({ books: { mode: 'selected', ids: [] } }));
   assert.throws(() => grants({ notebooks: { mode: 'selected', ids: [] } }));
   const g = grants({ notebooks: { mode: 'selected', ids: [orgId, orgId], write: true } });
   assert.deepEqual(g.notebooks, { mode: 'selected', ids: [orgId], write: true });
@@ -81,12 +83,12 @@ test('responses and permission updates require explicit expected revision', asyn
   assert.equal(calls[0].body.p_payload.revision, 2);
   await assert.rejects(service.dispatch('permissions', { id: orgId, orgId, revision: -1, grants: {} }));
 });
-test('sharing serializes a single trusted resource, verifies owner and prepares private assets', async () => {
+test('sharing serializes a single trusted resource, verifies membership and prepares private assets', async () => {
   const seen = [];
   const { service, calls } = setup({ serializeResource: async p => { seen.push(p); return { title: 'Synthetic book' }; }, prepareAssets: async p => ({ content: p.resource, assets: [] }) });
   await service.dispatch('publish', { orgId, module: 'books', resourceId: recipientId, revision: 0, content: { personalSnapshot: 'must not pass' } });
   assert.deepEqual(seen, [{ module: 'books', resourceId: recipientId }]);
-  assert.equal(calls[0].body.p_action, 'members');
+  assert.equal(calls[0].body.p_action, 'roster');
   assert.deepEqual(calls[1].body.p_payload.content, { title: 'Synthetic book' });
   await assert.rejects(service.dispatch('publish', { orgId, module: 'mei', resourceId: recipientId, revision: 0 }));
 });

@@ -1,4 +1,4 @@
-.account-modal { max-width:420px; padding:28px 34px 32px; }
+.account-modal { max-width:420px; }
 .account-modal .modal-heading h2 { font-size:12px; font-weight:500; color:var(--muted); }
 .account-wordmark { display:block; width:190px; height:42px; max-width:80%; margin:15px auto 12px; background:currentColor; mask-size:contain; mask-repeat:no-repeat; mask-position:center; }
 .account-intro { text-align:center; color:var(--muted); margin:0 0 26px; font-size:13px; }
@@ -10,7 +10,8 @@
 .account-form { display:grid; gap:17px; }
 .account-form label { display:grid; gap:8px; font-size:12px; color:var(--muted); }
 .account-form input { width:100%; min-height:43px; border-radius:9px; }
-.account-form > .primary { justify-content:center; min-height:43px; margin-top:5px; }
+.modal .modal-body .account-actions { flex-direction:column; align-items:stretch; margin-top:0; }
+.account-actions > .primary { justify-content:center; min-height:43px; }
 .account-offline { display:flex; justify-content:center; align-items:center; gap:8px; border:0; padding:9px; background:transparent; color:var(--muted); font-size:12px; }
 .cloud-heading { display:flex; align-items:center; gap:13px; margin-bottom:20px; }
 .cloud-heading p { overflow-wrap:anywhere; }

@@ -259,4 +259,4 @@ function registerPluginIpc({ ipcMain, manager, isTrustedSender }) {
   });
   return () => { for (const name of Object.keys(actions)) ipcMain.removeHandler(`plugins:${name}`); };
 }
-module.exports = { createPluginManager, registerPluginIpc, scheme, validateManifest, validatePackage, verifyCatalog, compatible, download, hash, ABI, IDS, MAX_PACKAGE, CATALOG_URL };
+module.exports = { createPluginManager, registerPluginIpc, scheme, validateManifest, validatePackage, verifyCatalog, compatible, download, hash, ABI, IDS, MAX_PACKAGE, MAX_CATALOG, CATALOG_URL };

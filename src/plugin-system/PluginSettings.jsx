@@ -51,6 +51,6 @@ export default function PluginSettings({ bridge = pluginBridge(), onChanged }) {
         </div>
       </div>{plugin.error && <p role="alert">{plugin.error} Consulte o catálogo para reinstalar.</p>}
     </div>)}
-    {removing && <Modal small title={`Remover ${removing.name}?`} onClose={() => !busy && setRemoving(null)}><p>O adicional será removido deste dispositivo. Seus lançamentos, configurações e relatórios serão preservados.</p><div className="button-row"><button className="secondary" disabled={disabled} onClick={() => setRemoving(null)}>Cancelar</button><button className="primary" disabled={disabled} onClick={() => { const id = removing.id; setRemoving(null); run(() => bridge.remove(id), 'Plugin removido. Seus dados foram preservados.'); }}>Remover plugin</button></div></Modal>}
+    {removing && <Modal small title={`Remover ${removing.name}?`} onClose={() => !busy && setRemoving(null)}><p>O adicional será removido deste dispositivo. Seus lançamentos, configurações e relatórios serão preservados.</p><div className="modal-actions"><button className="secondary" disabled={disabled} onClick={() => setRemoving(null)}>Cancelar</button><button className="primary" disabled={disabled} onClick={() => { const id = removing.id; setRemoving(null); run(() => bridge.remove(id), 'Plugin removido. Seus dados foram preservados.'); }}>Remover plugin</button></div></Modal>}
   </div>;
 }

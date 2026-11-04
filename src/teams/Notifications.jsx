@@ -4,16 +4,16 @@ import PopupMenu from '../PopupMenu.jsx';
 import { MODULE_LABELS } from './Permissions.jsx';
 import './notifications.css';
 
-const labels = { invitation: 'Convite para participar', permissions: 'Permissões atualizadas', revoke: 'Acesso removido', accepted: 'Convite aceito', declined: 'Convite recusado' };
+const labels = { invitation: 'Convite para participar', permissions: 'Permissões atualizadas', revoke: 'Acesso removido', accepted: 'Convite aceito', declined: 'Convite recusado', shared_books: 'Livro compartilhado ou atualizado', shared_notebooks: 'Caderno compartilhado ou atualizado' };
 
-export default function Notifications({ api, user, count = 0 }) {
+export default function Notifications({ api, user, count = 0, onOpenShared }) {
   if (!user) return null;
   return <PopupMenu key={user.id} label={`Notificações${count ? ` · ${count} não lida(s)` : ''}`} icon={Bell} badge={count} iconOnly className="icon-button notification-trigger">
-    {({ close }) => <Inbox api={api} close={close} />}
+    {({ close }) => <Inbox api={api} close={close} onOpenShared={onOpenShared} />}
   </PopupMenu>;
 }
 
-function Inbox({ api, close }) {
+function Inbox({ api, close, onOpenShared }) {
   const [data, setData] = useState({ notifications: [], invitations: [], unreadCount: 0 });
   const [tab, setTab] = useState('notifications'), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [error, setError] = useState(''), [confirmAll, setConfirmAll] = useState(false);
   const epoch = useRef(0), alive = useRef(true), working = useRef(false);
@@ -45,7 +45,7 @@ function Inbox({ api, close }) {
       <div className="notification-actions"><button type="button" disabled={busy || !data.unreadCount} onClick={() => run('readAll')}>Marcar todas como lidas</button><button type="button" disabled={busy || !data.notifications.length} onClick={() => setConfirmAll(true)}>Excluir todas</button></div>
       {confirmAll && <div className="notification-confirm"><p>Excluir todas as notificações? Os convites pendentes continuam disponíveis na aba Convites.</p><div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={() => setConfirmAll(false)}>Cancelar</button><button type="button" className="secondary" disabled={busy} onClick={() => run('deleteAllNotices')}>Confirmar exclusão</button></div></div>}
       {!loading && !data.notifications.length && <p className="muted">Nenhuma notificação.</p>}
-      {data.notifications.map(n => <article key={n.id} className={`notification-item${n.read_at ? '' : ' unread'}`}><div><strong>{n.org_name}</strong><p>{labels[n.kind] || 'Atualização da equipe'}</p><time dateTime={n.created_at}>{new Date(n.created_at).toLocaleString('pt-BR')}</time>{!n.read_at && <button type="button" disabled={busy} onClick={() => run('read', { id: n.id })}>Marcar como lida</button>}</div><button type="button" className="icon-button" aria-label={`Excluir notificação de ${n.org_name}`} title="Excluir notificação" disabled={busy} onClick={() => run('deleteNotice', { id: n.id })}><Trash2 size={15} /></button></article>)}
+      {data.notifications.map(n => <article key={n.id} className={`notification-item${n.read_at ? '' : ' unread'}`}><div><strong>{n.org_name}</strong><p>{labels[n.kind] || 'Atualização da equipe'}</p>{onOpenShared && ['shared_books','shared_notebooks','permissions','accepted'].includes(n.kind) && <div className="button-row">{['books','notebooks'].filter(module => n.kind === `shared_${module}` || (['permissions','accepted'].includes(n.kind) && n.grants?.[module]?.mode && n.grants[module].mode !== 'none')).map(module => <button type="button" key={module} onClick={() => { onOpenShared(n.org_id,module); close(); }}>{module === 'books' ? 'Ver livros' : 'Ver cadernos'}</button>)}</div>}<time dateTime={n.created_at}>{new Date(n.created_at).toLocaleString('pt-BR')}</time>{!n.read_at && <button type="button" disabled={busy} onClick={() => run('read', { id: n.id })}>Marcar como lida</button>}</div><button type="button" className="icon-button" aria-label={`Excluir notificação de ${n.org_name}`} title="Excluir notificação" disabled={busy} onClick={() => run('deleteNotice', { id: n.id })}><Trash2 size={15} /></button></article>)}
     </> : <>
       {!loading && !data.invitations.length && <p className="muted">Nenhum convite pendente.</p>}
       {data.invitations.map(n => <article className="notification-item" key={n.member_id}><div><strong>{n.org_name}</strong><p>Convite para participar</p><ul>{Object.entries(MODULE_LABELS).map(([key, label]) => { const g = n.grants[key]; return <li key={key}>{label}: {g?.mode === 'all' ? 'todos, incluindo futuros' : g?.mode === 'selected' ? `${g.ids.length} selecionados` : 'nenhum'}{g?.mode && g.mode !== 'none' && g.write ? ' · edição' : ''}</li>; })}</ul><div className="button-row"><button type="button" className="primary" disabled={busy} onClick={() => run('respond', { id: n.member_id, revision: n.revision, response: 'accepted' })}>Aceitar</button><button type="button" className="secondary" disabled={busy} onClick={() => run('respond', { id: n.member_id, revision: n.revision, response: 'declined' })}>Recusar</button></div></div></article>)}

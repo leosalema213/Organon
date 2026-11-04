@@ -11,4 +11,5 @@ import './palettes.css';
 import './library.css';
 import './reminders.css';
 import './branding.css';
+import './typography.css';
 createRoot(document.getElementById('root')).render(<App />);

@@ -29,7 +29,7 @@ function harness(t) {
       if (server.beforeRequest) await server.beforeRequest(endpoint, options);
       if (endpoint === '/rest/v1/rpc/organon_teams') {
         if (options.body.p_action === 'list') return server.spaces;
-        if (options.body.p_action === 'members') return [];
+        if (['members','roster'].includes(options.body.p_action)) return [];
         if (options.body.p_action === 'publish') {
           const p = options.body.p_payload;
           server.resource = { org_id: p.orgId, module: p.module, resource_id: p.resourceId, content: p.content, revision: 1 };

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadPdf, TextLayer } from './pdf-runtime.js';
-import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Maximize2, Minus, Plus, X } from 'lucide-react';
 import { bookPosition } from './books.js';
 
 function PdfPage({ pdf, number, scale, onReady, onError }) {
@@ -30,7 +30,7 @@ function PdfPage({ pdf, number, scale, onReady, onError }) {
   return <div className="pdf-sheet" style={size || undefined} role="document" aria-label={`Página ${number}`}><canvas ref={canvas} aria-hidden="true" /><div className="textLayer" ref={text} /></div>;
 }
 
-export default function PdfReader({ book, onChange, onClose, saveError }) {
+export default function PdfReader({ book, onChange, onClose, saveError, onAnki }) {
   const [pdf, setPdf] = useState(null), [error, setError] = useState('');
   const [number, setNumber] = useState(book.page), [jump, setJump] = useState(String(book.page));
   const [view, setView] = useState(book.view), [dimensions, setDimensions] = useState({ width: 800, height: 650 }), [pageSize, setPageSize] = useState({ width: 595, height: 842 });
@@ -72,6 +72,7 @@ export default function PdfReader({ book, onChange, onClose, saveError }) {
     const previousFocus = document.activeElement;
     root.current?.querySelector('button')?.focus();
     const handle = event => {
+      if ([...document.querySelectorAll('[role="dialog"]')].at(-1) !== root.current) return;
       if (event.key === 'Tab') {
         const controls = [...root.current.querySelectorAll('button:not(:disabled), input, select, [tabindex="0"]')];
         const first = controls[0], last = controls.at(-1);
@@ -105,6 +106,7 @@ export default function PdfReader({ book, onChange, onClose, saveError }) {
       <label>Zoom<select aria-label="Zoom do PDF" value={view.zoom} onChange={e => settings({ zoom: Number(e.target.value) })}>{[0.5, 0.75, 1, 1.25, 1.5, 2, 3].map(zoom => <option key={zoom} value={zoom}>{zoom === 1 ? 'Ajustar à tela' : `${zoom * 100}%`}</option>)}</select></label>
       <div className="reader-zoom-actions"><button aria-label="Diminuir zoom" title="Diminuir zoom · Ctrl + scroll" disabled={view.zoom <= 0.5} onClick={() => zoomBy(-1)}><Minus size={15} /></button><button aria-label="Aumentar zoom" title="Aumentar zoom · Ctrl + scroll" disabled={view.zoom >= 3} onClick={() => zoomBy(1)}><Plus size={15} /></button></div>
       <label>Contraste<select aria-label="Contraste de leitura" value={view.contrast} onChange={e => settings({ contrast: e.target.value })}><option value="paper">Papel</option><option value="night">Noturno</option><option value="sepia">Sépia</option></select></label>
+      {onAnki && <button type="button" className="secondary reader-anki" onClick={onAnki}><Copy size={15} />Anotar no Anki</button>}
     </div>
     <div ref={area} className={`reader-pages ${view.contrast}`} tabIndex={0} aria-label="Área de leitura. Use as setas para mudar de página.">
       {error ? <p role="alert">{error}</p> : !pdf ? <p role="status">Abrindo livro…</p> : <div className="pdf-spread">{Array.from({ length: Math.min(view.spread, pdf.numPages - number + 1) }, (_, index) => <PdfPage key={`${number + index}:${scale}`} pdf={pdf} number={number + index} scale={scale} onReady={ready} onError={setError} />)}</div>}

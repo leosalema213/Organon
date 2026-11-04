@@ -4,6 +4,8 @@
 
 Prefira alterações incrementais e localizadas. Preserve a estrutura dos arquivos e mantenha o diff pequeno. Não reescreva arquivos inteiros nem use delete + recreate, salvo necessidade estrutural real.
 
+Quando um ajuste afetar um componente compartilhado, faça a correção na origem comum e revise todos os usos e estilos locais que possam sobrescrevê-la.
+
 ## Testes e validação com o usuário
 
 - Por preferência explícita do usuário, a execução dos testes fica, por padrão, no terminal dele. Não rode automaticamente suítes completas, integrações/E2E ou verificações amplas de cores e aparência.

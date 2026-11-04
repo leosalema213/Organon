@@ -9,7 +9,7 @@ function grants(value = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(k => !MODULES.includes(k))) throw new Error('Permissão inválida.');
   return Object.fromEntries(MODULES.map(module => {
     const g = value[module] || { mode: 'none' };
-    if (!['none', 'all', ...(['notebooks', 'kanban'].includes(module) ? ['selected'] : [])].includes(g.mode)) throw new Error('Escopo inválido.');
+    if (!['none', 'all', ...(module !== 'financeiro' ? ['selected'] : [])].includes(g.mode)) throw new Error('Escopo inválido.');
     const ids = g.mode === 'selected' ? [...new Set((g.ids || []).map(uuid))] : [];
     if (ids.length > 500 || (g.mode === 'selected' && !ids.length)) throw new Error('Selecione os recursos.');
     return [module, { mode: g.mode, ids, write: g.mode !== 'none' && g.write === true }];
@@ -43,8 +43,8 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
     switch (action) {
       case 'catalog':
         p.orgId = uuid(input.orgId);
-        // Verify owner remotely before touching the personal resource catalog.
-        await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: 'members', p_payload: p } });
+        // Verify accepted membership remotely before touching the personal catalog.
+        await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: 'roster', p_payload: p } });
         if (!getResourceCatalog) throw new Error('O catálogo local ainda precisa ser conectado.');
         return getResourceCatalog({ orgId: p.orgId });
       case 'list': case 'notifications': case 'inbox': case 'readAll': case 'deleteAllNotices': break;
@@ -67,7 +67,7 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
         if (!['notebooks', 'books'].includes(input.module)) throw new Error('Recurso não compartilhável.');
         if (!serializeResource || !prepareAssets) throw new Error('O compartilhamento individual ainda precisa ser conectado ao catálogo local.');
         p.module = input.module; p.revision = revision(input.revision);
-        await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: 'members', p_payload: { orgId: p.orgId } } });
+        await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: 'roster', p_payload: { orgId: p.orgId } } });
         // Serializer resolves one resource by ID in the trusted main, never accepts renderer snapshots.
         const resource = await serializeResource({ module: p.module, resourceId: p.resourceId });
         const prepared = await prepareAssets({ orgId: p.orgId, module: p.module, resourceId: p.resourceId, resource });

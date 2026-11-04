@@ -95,8 +95,7 @@
 [data-theme="dark"] .note-meta :is(input,select) { color:#999; }
 [data-theme="dark"] .note-meta option { background:#202020; }
 [data-theme="dark"] .note-images .icon-button { background:#252525; }
-[data-theme="dark"] .sketch-panel { background:#1a1a1a; }
-[data-theme="dark"] .sketch-panel canvas { border-color:#555; }
+[data-theme="dark"] .sketch-content canvas { border-color:#555; }
 [data-theme="dark"] .toast { background:#222;border-color:#ffffff20;color:#ddd;box-shadow:0 8px 40px #0007; }
 [data-theme="dark"] .toast>svg { color:#a3b8aa; }
 [data-theme="dark"] :is(.fatal,.loading) { color:#999;background:#101010; }

@@ -1,9 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, MoreHorizontal, RefreshCw, Search, Settings, GripVertical } from 'lucide-react';
 import Modal from '../Modal.jsx';
 import PopupMenu from '../PopupMenu.jsx';
 import RichTextField from '../RichTextField.jsx';
 import MarkerIcon from './icons.jsx';
+import useListDrag from './useListDrag.js';
+import useCardDrag from './useCardDrag.js';
+import { reorderedLists } from './list-drag.js';
 import { BOARD_COLORS, LIST_COLORS, ICON_NAMES, plainText, matchesCard, ordered, editorContent, prepareImage } from './model.js';
 import './kanban.css';
 
@@ -39,8 +42,10 @@ function KanbanPage({ api, user, workspace }) {
   const [catalog, setCatalog] = useState({ tags: [], canManageTags: false, canCreateBoard: false });
   const [loading, setLoading] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [query, setQuery] = useState(''), [filterTags, setFilterTags] = useState([]), [searchOpen, setSearchOpen] = useState(false);
-  const [form, setForm] = useState(null), [confirm, setConfirm] = useState(null), [file, setFile] = useState(null), [drag, setDrag] = useState(null);
+  const [form, setForm] = useState(null), [confirm, setConfirm] = useState(null), [file, setFile] = useState(null);
   const context = useRef({ orgId, boardId, userId: user?.id }), generation = useRef(0), boardGeneration = useRef(0), saving = useRef(false);
+  const boardRef = useRef(null);
+  const listDrag = useListDrag(boardRef, `${orgId}:${boardId}:${user?.id}:${data.canWrite}`, moveList);
   context.current = { orgId, boardId, userId: user?.id };
   const board = data.board?.id === boardId ? data.board : boards.find(item => item.id === boardId);
   const background = useAsset(api, orgId, boardId, board?.bg_image_url);
@@ -119,17 +124,58 @@ function KanbanPage({ api, user, workspace }) {
     });
   }
   function remove(type, record) { setConfirm({ type, record, name: record.name || record.title }); }
-  function moveCard(card, listId, beforeId = null) { run(() => call('moveCard', { id: card.id, expectedRevision: card.revision, listId, beforeId }), { close: false }); }
-  function moveList(list, beforeId) { run(() => call('moveList', { id: list.id, expectedRevision: list.revision, beforeId }), { close: false }); }
-  function drop(e, listId, beforeId = null) {
-    e.preventDefault(); e.stopPropagation();
-    if (drag?.type === 'card' && drag.record.id !== beforeId && data.canWrite && !busy) moveCard(drag.record, listId, beforeId);
-    setDrag(null);
+  function moveCard(card, listId, beforeId = null) {
+    if (saving.current || !data.canWrite || !data.lists.some(list => list.id === listId)) return;
+    const previous = data.cards;
+    const source = ordered(previous.filter(item => item.list_id === card.list_id));
+    if (!source.some(item => item.id === card.id && item.revision === card.revision)) return;
+    const destination = listId === card.list_id ? source : ordered(previous.filter(item => item.list_id === listId));
+    if (beforeId !== null && !destination.some(item => item.id === beforeId)) return;
+    const next = reorderedLists(listId === card.list_id ? source : [...destination, card], card.id, beforeId);
+    if (listId === card.list_id && next === source) return;
+    const positions = new Map(next.map((item, position) => [item.id, position]));
+    const optimistic = previous.map(item => positions.has(item.id) ? { ...item, list_id: listId, position: positions.get(item.id) } : item);
+    setData(current => ({ ...current, cards: optimistic }));
+    run(async () => {
+      try { await call('moveCard', { id: card.id, expectedRevision: card.revision, listId, beforeId }); }
+      catch (error) {
+        setData(current => current.cards === optimistic ? { ...current, cards: previous } : current);
+        throw error;
+      }
+    }, { close: false });
   }
-  const visible = data.cards.filter(card => matchesCard(card, query, filterTags, data.cardTags));
+  function moveList(list, beforeId) {
+    if (saving.current || !data.canWrite) return;
+    const previous = data.lists, sorted = ordered(previous), next = reorderedLists(sorted, list.id, beforeId);
+    if (next === sorted) return;
+    setData(current => ({ ...current, lists: next.map((item, position) => ({ ...item, position })) }));
+    run(async () => {
+      try { await call('moveList', { id: list.id, expectedRevision: list.revision, beforeId }); }
+      catch (err) { if (context.current.boardId === boardId && context.current.orgId === orgId) setData(current => ({ ...current, lists: previous })); throw err; }
+    }, { close: false });
+  }
+  const visible = useMemo(() => data.cards.filter(card => matchesCard(card, query, filterTags, data.cardTags)), [data.cards, query, filterTags, data.cardTags]);
+  const cardsByList = useMemo(() => {
+    const groups = new Map();
+    for (const card of ordered(visible)) {
+      if (!groups.has(card.list_id)) groups.set(card.list_id, []);
+      groups.get(card.list_id).push(card);
+    }
+    return groups;
+  }, [visible]);
+  const markersByCard = useMemo(() => {
+    const links = new Map(), groups = new Map();
+    for (const link of data.cardTags) {
+      if (!links.has(link.card_id)) links.set(link.card_id, new Set());
+      links.get(link.card_id).add(link.tag_id);
+    }
+    for (const [cardId, ids] of links) groups.set(cardId, data.tags.filter(tag => ids.has(tag.id)));
+    return groups;
+  }, [data.cardTags, data.tags]);
   const filtered = !!query.trim() || filterTags.length > 0;
-  const lists = ordered(data.lists);
+  const lists = useMemo(() => ordered(data.lists), [data.lists]);
   const blocked = busy || !data.canWrite;
+  const startCardDrag = useCardDrag(boardRef, boardId, data.cards, data.lists, blocked || filtered, moveCard);
   const tags = data.board ? data.tags : catalog.tags;
   const canManageTags = data.board ? data.canManageTags : catalog.canManageTags;
   const boardStyle = board?.bg_type === 'color' ? { backgroundColor: board.bg_color } : board?.bg_type === 'image' && background ? { backgroundImage: `url("${background}")`, backgroundSize: board.bg_size === 'repeat' ? 'auto' : 'cover', backgroundRepeat: board.bg_size === 'repeat' ? 'repeat' : 'no-repeat', backgroundPosition: 'center' } : {};
@@ -141,16 +187,16 @@ function KanbanPage({ api, user, workspace }) {
     <div className="kanban-toolbar"><select aria-label="Selecionar quadro" value={boardId || ''} disabled={busy} onChange={e => { setBoardId(e.target.value); setQuery(''); }}><option value="" disabled>Selecione</option>{boards.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{board && <div className="kanban-toolbar-actions"><button type="button" className={`icon-button kanban-search-toggle${filtered ? ' has-filters' : ''}`} title={filtered ? 'Buscar e filtrar cartões (filtros ativos)' : 'Buscar e filtrar cartões'} aria-label={filtered ? 'Buscar e filtrar cartões (filtros ativos)' : 'Buscar e filtrar cartões'} aria-expanded={searchOpen} aria-controls="kanban-filters" onClick={() => setSearchOpen(value => !value)}><Search size={16} /></button><PopupMenu label="Ações do quadro" icon={Settings} iconOnly className="icon-button" items={[{ id: 'edit', label: 'Editar quadro e fundo', disabled: blocked, onSelect: () => open('board', board) }, { id: 'delete', label: 'Excluir quadro', disabled: blocked, onSelect: () => remove('board', board) }]} /></div>}</div>
     {board && <><div id="kanban-filters" className="kanban-filters" hidden={!searchOpen}><div className="kanban-search"><Search size={16} /><input aria-label="Buscar cartões" placeholder="Buscar por título ou descrição" value={query} onChange={e => setQuery(e.target.value)} />{filtered && <button onClick={() => { setQuery(''); setFilterTags([]); }}>Limpar filtros</button>}</div><div className="kanban-markers" aria-label="Filtrar marcadores">{data.tags.map(tag => <button type="button" key={tag.id} className="kanban-marker" aria-pressed={filterTags.includes(tag.id)} style={{ '--marker': tag.color }} onClick={() => setFilterTags(previous => previous.includes(tag.id) ? previous.filter(id => id !== tag.id) : [...previous, tag.id])}><MarkerIcon name={tag.icon} />{tag.name}</button>)}</div>{filtered && <details className="kanban-results"><summary>{visible.length} resultado(s)</summary><div>{visible.map(card => <button key={card.id} onClick={() => open('card', card)}>{card.title}<small>{lists.find(list => list.id === card.list_id)?.name}</small></button>)}</div></details>}</div>
       {!data.canWrite && !loading && <p className="muted">Este quadro está disponível para consulta.</p>}
-      <div className="kanban-board" style={boardStyle} aria-busy={loading || busy}>
+      <div ref={boardRef} className={`kanban-board${listDrag.preview ? ' is-sorting-lists' : ''}`} style={boardStyle} aria-busy={loading || busy}>
         {loading && !data.board && <p role="status">Carregando quadro…</p>}
-        {lists.map((list, index) => <section className="kanban-column" key={list.id} aria-label={list.name} onDragOver={e => { if (drag && !blocked) e.preventDefault(); }} onDrop={e => { if (drag?.type === 'list') { e.preventDefault(); if (drag.record.id !== list.id) moveList(drag.record, list.id); setDrag(null); } else drop(e, list.id); }}>
-          <header style={{ borderTopColor: list.color }}><span draggable={!blocked} onDragStart={e => { e.dataTransfer.setData('text/plain', list.id); e.dataTransfer.effectAllowed = 'move'; setDrag({ type: 'list', record: list }); }} onDragEnd={() => setDrag(null)} title="Arrastar coluna"><GripVertical size={15} /></span><h2>{list.name}</h2><small>{visible.filter(card => card.list_id === list.id).length}</small><PopupMenu label={`Ações de ${list.name}`} icon={MoreHorizontal} iconOnly className="icon-button" items={[{ id: 'edit', label: 'Editar coluna', disabled: blocked, onSelect: () => open('list', list) }, { id: 'left', label: 'Mover coluna à esquerda', disabled: blocked || index === 0, onSelect: () => moveList(list, lists[index - 1].id) }, { id: 'right', label: 'Mover coluna à direita', disabled: blocked || index === lists.length - 1, onSelect: () => moveList(list, lists[index + 2]?.id || null) }, { id: 'delete', label: 'Excluir coluna e seus cartões', disabled: blocked, onSelect: () => remove('list', list) }]} /></header>
-          <div className="kanban-cards">{ordered(visible.filter(card => card.list_id === list.id)).map((card, cardIndex, columnCards) => <article key={card.id} className="kanban-card" draggable={!blocked && !filtered} onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', card.id); e.dataTransfer.effectAllowed = 'move'; setDrag({ type: 'card', record: card }); }} onDragEnd={() => setDrag(null)} onDragOver={e => { if (drag?.type === 'card' && !blocked && !filtered) { e.preventDefault(); e.stopPropagation(); } }} onDrop={e => drop(e, list.id, card.id)}>
+        {lists.map((list, index) => <section data-list-id={list.id} className={`kanban-column${listDrag.preview?.id === list.id ? ' is-dragging-list' : ''}`} key={list.id} aria-label={list.name}>
+          <header style={{ borderTopColor: list.color }} draggable={!blocked} onDragStart={e => listDrag.start(e, list)} title="Arrastar lista para reordenar"><span aria-hidden="true"><GripVertical size={15} /></span><h2>{list.name}</h2><small>{(cardsByList.get(list.id)?.length || 0)}</small><PopupMenu label={`Ações de ${list.name}`} icon={MoreHorizontal} iconOnly className="icon-button" items={[{ id: 'edit', label: 'Editar coluna', disabled: blocked, onSelect: () => open('list', list) }, { id: 'left', label: 'Mover coluna à esquerda', disabled: blocked || index === 0, onSelect: () => moveList(list, lists[index - 1].id) }, { id: 'right', label: 'Mover coluna à direita', disabled: blocked || index === lists.length - 1, onSelect: () => moveList(list, lists[index + 2]?.id || null) }, { id: 'delete', label: 'Excluir coluna e seus cartões', disabled: blocked, onSelect: () => remove('list', list) }]} /></header>
+          <div className="kanban-cards">{(cardsByList.get(list.id) || []).map((card, cardIndex, columnCards) => <article key={card.id} data-card-id={card.id} className="kanban-card" draggable={!blocked && !filtered} onDragStart={event => startCardDrag(event, card)}>
             {card.thumbnail_url && <Asset api={api} orgId={orgId} boardId={boardId} reference={card.thumbnail_url} alt={`Miniatura de ${card.title}`} />}
             <div className="kanban-card-top"><button className="kanban-card-title" onClick={() => open('card', card)}>{card.title}</button><PopupMenu label={`Ações de ${card.title}`} icon={MoreHorizontal} iconOnly className="icon-button" items={[{ id: 'edit', label: 'Editar cartão', disabled: blocked, onSelect: () => open('card', card) }, { id: 'up', label: 'Mover para cima', disabled: blocked || filtered || cardIndex === 0, onSelect: () => moveCard(card, list.id, columnCards[cardIndex - 1].id) }, { id: 'down', label: 'Mover para baixo', disabled: blocked || filtered || cardIndex === columnCards.length - 1, onSelect: () => moveCard(card, list.id, columnCards[cardIndex + 2]?.id || null) }, ...lists.filter(target => target.id !== list.id).map(target => ({ id: target.id, label: `Mover para ${target.name}`, disabled: blocked, onSelect: () => moveCard(card, target.id) })), { id: 'delete', label: 'Excluir cartão', disabled: blocked, onSelect: () => remove('card', card) }]} /></div>
             {card.description && <p className="kanban-description">{plainText(card.description)}</p>}{card.price != null && <strong className="kanban-price">{money(card.price)}</strong>}
-            <div className="kanban-markers">{data.tags.filter(tag => data.cardTags.some(link => link.card_id === card.id && link.tag_id === tag.id)).map(tag => <span className="kanban-marker" key={tag.id} style={{ '--marker': tag.color }}><MarkerIcon name={tag.icon} />{tag.name}</span>)}</div>
-          </article>)}{!visible.some(card => card.list_id === list.id) && <p className="muted">{filtered ? 'Nenhum cartão corresponde aos filtros.' : 'Nenhum cartão nesta coluna.'}</p>}</div>
+            <div className="kanban-markers">{(markersByCard.get(card.id) || []).map(tag => <span className="kanban-marker" key={tag.id} style={{ '--marker': tag.color }}><MarkerIcon name={tag.icon} />{tag.name}</span>)}</div>
+          </article>)}{!cardsByList.has(list.id) && <p className="muted">{filtered ? 'Nenhum cartão corresponde aos filtros.' : 'Nenhum cartão nesta coluna.'}</p>}</div>
           <button className="kanban-add" disabled={blocked} onClick={() => open('card', { list_id: list.id })}><Plus size={15} />Adicionar cartão</button>
         </section>)}{!loading && !lists.length && <p>Nenhuma coluna. Crie uma coluna para começar.</p>}
       </div></>}
@@ -173,13 +219,13 @@ function KanbanPage({ api, user, workspace }) {
           </>}
         </fieldset>
         {error && <p className="kanban-error" role="alert">{error}</p>}
-        <div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={() => { setForm(null); setFile(null); }}>Fechar</button>{form.type === 'tag' && form.id && <button type="button" className="secondary" disabled={busy} onClick={() => open('tag')}>Novo marcador</button>}<button className="primary" disabled={busy || (['card','list'].includes(form.type) && !data.canWrite) || (form.type === 'tag' && !canManageTags)}>{busy ? 'Salvando…' : 'Salvar'}</button></div>
+        <div className="modal-actions"><button type="button" className="secondary" disabled={busy} onClick={() => { setForm(null); setFile(null); }}>Fechar</button>{form.type === 'tag' && form.id && <button type="button" className="secondary" disabled={busy} onClick={() => open('tag')}>Novo marcador</button>}<button className="primary" disabled={busy || (['card','list'].includes(form.type) && !data.canWrite) || (form.type === 'tag' && !canManageTags)}>{busy ? 'Salvando…' : 'Salvar'}</button></div>
       </form>
     </Modal>}
-    {confirm && <Modal small title="Confirmar exclusão" onClose={() => { if (!busy) setConfirm(null); }}><p>Excluir “{confirm.name}”?</p>{['board','list'].includes(confirm.type) && <p>Os cartões e vínculos dentro {confirm.type === 'board' ? 'do quadro' : 'da coluna'} também serão excluídos.</p>}{confirm.type === 'tag' && <p>O marcador será removido de todos os cartões do espaço.</p>}{error && <p className="kanban-error" role="alert">{error}</p>}<div className="button-row"><button className="secondary" disabled={busy} onClick={() => setConfirm(null)}>Cancelar</button><button className="primary kanban-danger" disabled={busy} onClick={() => run(() => call(`delete${confirm.type[0].toUpperCase()}${confirm.type.slice(1)}`, { id: confirm.record.id, expectedRevision: confirm.record.revision }))}>{busy ? 'Excluindo…' : 'Excluir'}</button></div></Modal>}
+    {confirm && <Modal small title="Confirmar exclusão" onClose={() => { if (!busy) setConfirm(null); }}><p>Excluir “{confirm.name}”?</p>{['board','list'].includes(confirm.type) && <p>Os cartões e vínculos dentro {confirm.type === 'board' ? 'do quadro' : 'da coluna'} também serão excluídos.</p>}{confirm.type === 'tag' && <p>O marcador será removido de todos os cartões do espaço.</p>}{error && <p className="kanban-error" role="alert">{error}</p>}<div className="modal-actions"><button className="secondary" disabled={busy} onClick={() => setConfirm(null)}>Cancelar</button><button className="primary kanban-danger" disabled={busy} onClick={() => run(() => call(`delete${confirm.type[0].toUpperCase()}${confirm.type.slice(1)}`, { id: confirm.record.id, expectedRevision: confirm.record.revision }))}>{busy ? 'Excluindo…' : 'Excluir'}</button></div></Modal>}
   </section>;
 }
 
-export default function Kanban(props) {
+export default React.memo(function Kanban(props) {
   return <KanbanPage key={`${props.user?.id || 'anonymous'}:${props.workspace?.id || 'none'}`} {...props} />;
-}
+});

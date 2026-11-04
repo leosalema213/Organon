@@ -1,21 +1,22 @@
 /* Shared compact spacing, independent of each feature's form styles. */
-.modal.modal { border-radius:12px; }
+.modal-backdrop.modal-backdrop { z-index:40; }
+.modal.modal { --modal-body-space:14px; border-radius:12px; }
 .modal.modal.small { width:380px; }
-.modal .modal-heading { padding:12px 16px; align-items:center; border-radius:12px 12px 0 0; }
+.modal .modal-heading { flex:none; padding:12px 16px; align-items:center; border-radius:12px 12px 0 0; }
 .modal .modal-heading h2 { font-size:16px; letter-spacing:-.2px; }
 .modal .modal-heading p { margin-top:4px; font-size:12px; }
 .modal .modal-heading .icon-button { margin:0; }
-.modal .modal-body { padding:14px 16px; font-size:12px; min-height:0; }
+/* The dialog scrolls. Keep the full body height, including its bottom inset. */
+.modal .modal-body { flex:none; padding:var(--modal-body-space) 16px; font-size:12px; }
 .modal .modal-body > :is(form,.confirm-text,.update-body,.note-delete-body,.icon-picker-body,.block-kind-form) { padding:0; }
 .modal .modal-body > p + p { margin-top:8px; }
-.modal .modal-body .modal-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 0 0; margin:14px 0 0!important; }
+.modal .modal-body .modal-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; border-top:1px solid var(--line); padding:var(--modal-body-space) 0 0; margin:var(--modal-body-space) 0 0; }
 .modal .modal-body .modal-actions > button { flex:0 0 auto; width:auto; min-width:0; padding:7px 11px; font-size:12px; }
 .modal .modal-body .editor-form > label { margin-bottom:12px; }
 .modal .modal-body label > :is(input:not([type=checkbox]):not([type=color]),textarea,select) { margin-top:6px; font-size:13px; }
 .modal .modal-body :is(.anki-editor,.reminder-form,.journal-book-form,.book-link-form) > label:first-child { margin-top:0; }
-.modal .modal-body .anki-editor > .anki-actions:last-child { justify-content:flex-end; border-top:1px solid var(--line); padding-top:12px; margin-top:14px; }
 .modal .modal-body .anki-editor fieldset { margin:12px 0; padding:10px 12px; }
 .modal .modal-body .anki-editor label { margin:10px 0; }
 .modal .modal-body .anki-editor .anki-field-help input { font-size:11px; }
 .modal .modal-body .anki-import-summary { font-size:13px; }
-@media(max-width:640px) { .modal .modal-heading { padding:11px 14px; }.modal .modal-body { padding:12px 14px; } }
+@media(max-width:640px) { .modal.modal { --modal-body-space:12px; }.modal .modal-heading { padding:11px 14px; }.modal .modal-body { padding-inline:14px; } }

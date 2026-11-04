@@ -38,3 +38,4 @@
 .pdf-sheet .textLayer .markedContent{display:contents}.pdf-sheet .textLayer ::selection{background:#8080ff70;color:transparent}
 @media(max-width:900px){.reader-toolbar{gap:8px;padding:10px 16px}.reader-toolbar>span{display:none}.book-reader>footer{flex-wrap:wrap;gap:6px;padding:10px 16px}.book-reader footer>span{font-size:10px}.books-filters .tabs{width:100%}}
 .completed-book-list{background:#fff}
+.reader-toolbar .reader-anki{margin-left:auto}

@@ -1,5 +1,16 @@
 # Contrato de dados e migrações pendentes
 
+## Compartilhamento por membros — contrato 0.6.0, servidor aplicado e validado
+
+- `supabase/modules/sharing.sql`, após `teams.sql` e `inbox.sql`, adiciona `published_by` às cópias compartilhadas. A migração atribui as cópias existentes ao proprietário do espaço; preserva IDs, conteúdo e revisões. Novas publicações usam a identidade autenticada do servidor.
+- Livros passam a aceitar `selected`, além de `all`/`none`, na interface, IPC e autorização do servidor. A seleção lista somente cópias já publicadas no espaço. Financeiro continua sem seleção individual; MEI e os estudos pessoais não são compartilhados.
+- Membros aceitos podem publicar seus próprios livros/cadernos e atualizar/remover suas próprias cópias. Não podem substituir as de outro autor. O proprietário mantém a gestão do espaço e pode remover cópias. A autoria concede acesso à própria cópia enquanto a participação estiver aceita; revogação retira também esse acesso.
+- Storage permanece privado, com assets imutáveis e autorização por recurso. Apenas o autor da cópia pode publicar novos assets; o proprietário não substitui assets de outro autor por esse caminho. A leitura do recurso continua condicionada à permissão atual.
+- Avisos `shared_books`/`shared_notebooks` são recibos da central existente e só são enviados aos destinatários autorizados. Realtime transmite invalidações; a lista é consultada novamente com autorização. Concessões de permissão mantêm o aviso `permissions` existente.
+- Sincronização manual da conta atualiza os recursos dos espaços autorizados e baixa livros sequencialmente, reutilizando arquivos locais verificados por hash. A tela de compartilhados também tem sincronização explícita. Cadernos são listados com o conteúdo remoto autorizado e suas imagens são resolvidas ao abrir. Nada é mesclado automaticamente à biblioteca pessoal ou ao snapshot de estudos.
+- Não há alteração no formato dos backups/snapshot JSONB. O contador Anki é calculado de cartas de aprendizagem/revisão vencidas e elegíveis; não é persistido. Agenda-se somente a próxima mudança de vencimento, sem polling.
+- `supabase/modules/sharing.sql` aplicado no projeto Organon com autorização explícita. `tests/sharing-rls.sql` passou antes da aplicação, em transação com rollback, e novamente após a instalação: leitura de livros selecionados, bloqueio de livros não selecionados, publicação pelo membro, proteção contra substituição de outro autor, RLS de upload, avisos, isolamento de terceiros e revogação. Checagem final: nenhuma cópia sem autor, nenhum usuário sintético remanescente e bucket privado. Os 20 testes de domínio e as interfaces `sharing-ui.cjs`/`modules-ui.cjs` passaram no terminal do usuário.
+
 Este registro acompanha alterações persistidas enquanto a configuração do Supabase está pendente. O aplicativo continua local/offline; não é necessário aguardar o servidor para desenvolver funcionalidades. O diagnóstico e os requisitos para retomar a integração estão em `SUPABASE.md`.
 
 ## Retomada da sincronização — 03/11/2026
@@ -233,6 +244,14 @@ Transferências privadas de livros/imagens compartilhados e quadros usam `electr
 Validação recebida em 03/11/2026: interface integrada aprovada em perfil temporário com rede simulada; 24 testes focados finais aprovados; `tests/modules-live.cjs` retornou `ok:true` no servidor real com duas contas sintéticas. Confirmou Storage de PDF/imagem, cadernos selecionados, preservação dos snapshots pessoais, revogação mesmo com cache local, evento entre contas e desconexão/reconexão dos canais. Resultados isolados anteriores foram reaproveitados; não são somados como casos únicos. O hook do preview conferiu tamanho e SHA-256 dos 219 arquivos do manifesto. A checagem adicional `tests/modules-ui.cjs --packaged` foi aprovada pelo usuário: instalação/abertura/remoção dos plugins no executável real, com JavaScript/CSS pelo protocolo e preservação dos dados, catálogo/pacotes assinados locais e perfil descartável; o download público do GitHub depende da Release. Resíduos administrativos exclusivamente sintéticos ficam identificados nos relatórios ignorados para remoção, com sessões já revogadas.
 
 ## Registro de próximas alterações
+
+### Anki durante a leitura e rascunhos de cartas (lote 0.6.0)
+
+- A seleção automática de baralho usa exclusivamente a interseção `book.planIds` → planos existentes → `anki.decks[].planIds`. Um único resultado abre a carta nesse baralho; vários resultados ou nenhum exigem escolha explícita, com opção de criar baralho no formulário compartilhado. Referências a planos removidos não produzem uma escolha automática.
+- Não há novo vínculo direto livro/baralho nem campos novos em livros ou na coleção. Criar um baralho pelo leitor usa os mesmos campos, opções padrão e vínculos de planos já existentes; cartas entram na coleção pessoal, inclusive quando o leitor mostra uma cópia compartilhada. Nenhum conteúdo ou vínculo do espaço compartilhado é alterado.
+- Rascunhos ficam em memória, no App, por contexto (nova carta no Anki, edição por ID ou livro por ID/espaço). Clique fora e Esc preservam campos HTML, tipo, marcadores, metadados de mídia e prévia; reabrir o mesmo contexto recupera o preenchimento. O X descarta explicitamente o rascunho daquele contexto. Rascunhos não são cartas, não contam nas revisões e não entram no backup nem no payload sincronizado. Encerrar o aplicativo encerra esses rascunhos de sessão; trocar de conta ou restaurar um backup também os limpa.
+- Limpar apaga campos e marcadores da carta nova e limpa a prévia, preservando baralho/tipo. Não exclui cartas salvas, agendamentos, histórico ou arquivos de mídia. Criar pelo leitor fecha o modal e retorna à mesma instância do livro, posição e ajustes; criar pela área Anki mantém o cadastro contínuo.
+- Perfis/backups antigos continuam válidos sem migração/defaults novos. Exportação/importação e sincronização mantêm o contrato existente de `books`/`anki`. Não há DDL ou mudança remota no Supabase para esta feature. Validação focada preparada em `tests/book-anki.test.js`, `tests/book-anki.cjs` e no teste existente de cadastro contínuo `tests/anki-add-many.cjs`.
 
 ### Cadastro e central de notificações (lote 0.5.9)
 

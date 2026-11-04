@@ -29,7 +29,6 @@
 .reminder-schedule { display:flex;gap:8px;margin-bottom:16px; }
 .reminder-schedule button { display:flex;align-items:center;gap:6px;border:1px solid #88888830;border-radius:6px;padding:8px 10px;font-size:11px;color:#999; }
 .reminder-schedule button.selected { border-color:currentColor;color:inherit;background:#88888810; }
-.reminder-form .modal-actions { margin:20px 0 0!important; }
 .reminder-notify-setting { display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid #88888820;padding-top:15px; }
 .reminder-notify-setting strong { font-size:11px;font-weight:500; }
 .reminder-notify-setting p { font-size:10px;color:#999;margin-top:5px; }
