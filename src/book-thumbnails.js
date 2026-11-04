@@ -2,7 +2,7 @@ const jobs = new Map(), memory = new Map();
 let queue = Promise.resolve();
 
 // Only visible cards request work; PDFs are parsed one at a time, outside React state.
-export function requestThumbnail(hash) {
+export function requestThumbnail(hash, prepare) {
   if (memory.has(hash)) return { result: Promise.resolve(memory.get(hash)), release() {} };
   let job = jobs.get(hash);
   if (!job) {
@@ -10,7 +10,10 @@ export function requestThumbnail(hash) {
     job.result = queue.catch(() => {}).then(async () => {
       if (!job.users) return null;
       let src = await window.desktop.books.thumbnail(hash).catch(() => null);
-      if (!src && job.users) src = await renderThumbnail(hash);
+      if (!src && job.users) {
+        await prepare?.();
+        if (job.users) src = await renderThumbnail(hash);
+      }
       if (src) {
         if (memory.size >= 64) memory.delete(memory.keys().next().value);
         memory.set(hash, src);

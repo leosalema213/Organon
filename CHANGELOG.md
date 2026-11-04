@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.6.4
+
+- Exibir livros pessoais e compartilhados na mesma biblioteca, com capa, filtro por origem e progresso individual para cada conta.
+- Exibir um único cartão por arquivo, preservando o progresso pessoal quando o livro também está compartilhado.
+- Mostrar os espaços já marcados ao reabrir o compartilhamento de um livro e evitar o reenvio de cópias existentes.
+- Abrir Preferências pela engrenagem do cabeçalho e iniciar a sincronização pelo indicador Envio pendente.
+
 ## 0.6.3
 
 - Corrigir a rolagem da barra lateral e remover a lista Meus planos.

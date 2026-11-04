@@ -3,5 +3,6 @@
 .book-share-spaces{min-width:0;margin:0;padding:8px 10px 10px;border:1px solid var(--line);border-radius:7px}
 .book-share-spaces legend{padding:0 4px;color:var(--muted)}
 .book-share-spaces label{overflow-wrap:anywhere}
+.book-share-spaces small{display:block;margin-top:2px;color:var(--muted)}
 .teams-page{gap:var(--section-gap)}.teams-page .page-heading{margin-bottom:0}.teams-page .tabs{display:flex;gap:4px;flex-wrap:wrap}
 .teams-member{display:flex;align-items:center;gap:10px;min-width:0}.teams-member>div{min-width:0;overflow-wrap:anywhere}.teams-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--line);color:var(--muted)}.teams-avatar img{width:100%;height:100%;object-fit:cover}

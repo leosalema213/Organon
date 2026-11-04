@@ -1,4 +1,5 @@
 .account-modal { max-width:420px; }
+button.local-pill:not(:disabled):hover { background:color-mix(in srgb,var(--muted) 14%,transparent); }
 .account-modal .modal-heading h2 { font-size:12px; font-weight:500; color:var(--muted); }
 .account-wordmark { display:block; width:190px; height:42px; max-width:80%; margin:15px auto 12px; background:currentColor; mask-size:contain; mask-repeat:no-repeat; mask-position:center; }
 .account-intro { text-align:center; color:var(--muted); margin:0 0 26px; font-size:13px; }

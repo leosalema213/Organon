@@ -1,24 +1,29 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Columns3, Users, Wallet, BriefcaseBusiness } from 'lucide-react';
 import usePlugins from './plugin-system/usePlugins.js';
 import NoteEditor from './NoteEditor.jsx';
 import { newPage } from './model.js';
 import { waitForImages } from './images.js';
-import { validBooks } from './books.js';
 import './business.css';
-const PdfReader=lazy(()=>import('./PdfReader.jsx')),ReflowReader=lazy(()=>import('./ReflowReader.jsx'));
 const cleanError=error=>new Error(error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/,''));
-const readingKey=(user,workspace,book)=>`organon.shared-reading.v1:${user.id}:${workspace.id}:${book.id}:${book.hash}`;
-const readingState=book=>Object.fromEntries(['page','pageCount','furthestPage','location','fraction','furthestFraction','view'].filter(key=>book[key]!==undefined).map(key=>[key,book[key]]));
 
 export function useBusiness(user) {
   const plugins=usePlugins(),[spaces,setSpaces]=useState([]),[selected,setSelected]=useState(null),[error,setError]=useState(''),[notices,setNotices]=useState(0);
   const epoch=useRef(0),refreshSequence=useRef(0),listeners=useRef(new Map());
-  const syncs=useRef(new Map()),identity=useRef(user?.id);identity.current=user?.id;
+  const syncs=useRef(new Map()),downloads=useRef(new Map()),identity=useRef(user?.id);identity.current=user?.id;
   const api=useMemo(()=>({
     call:async(module,action,payload={})=>{try{if(!window.desktop?.modules)throw new Error('Disponível no aplicativo para Windows.');return await window.desktop.modules.call(module,action,payload);}catch(error){throw cleanError(error);}},
     subscribe:(module,listener)=>{const set=listeners.current.get(module)||new Set();set.add(listener);listeners.current.set(module,set);return()=>set.delete(listener);},
     refresh:()=>{for(const callbacks of listeners.current.values())for(const callback of callbacks)callback({type:'invalidate'});},
+    downloadSharedBook:(orgId,resourceId)=>{
+      const userId=identity.current,key=`${userId}:${orgId}:${resourceId}`;
+      if(downloads.current.has(key))return downloads.current.get(key);
+      const job=api.call('teams','downloadBook',{orgId,resourceId}).then(result=>{
+        if(identity.current!==userId)throw new Error('A conta mudou. Abra o livro novamente.');
+        return result;
+      }).finally(()=>downloads.current.delete(key));
+      downloads.current.set(key,job);return job;
+    },
     syncShared:orgId=>{
       const userId=identity.current,key=`${userId}:${orgId}`;
       if(syncs.current.has(key))return syncs.current.get(key);
@@ -26,7 +31,7 @@ export function useBusiness(user) {
       const job=(async()=>{
         check();const rows=await api.call('teams','resources',{orgId});check();
         for(const row of rows){
-          if(row.module==='books'){check();await api.call('teams','downloadBook',{orgId,resourceId:row.resource_id});check();}
+          if(row.module==='books'){check();await api.downloadSharedBook(orgId,row.resource_id);check();}
         }
         return rows;
       })().finally(()=>syncs.current.delete(key));
@@ -60,36 +65,30 @@ export function WorkspaceSelector({business}) {
   return <select className="business-space" aria-label="Espaço dos módulos" value={business.workspace?.id||''} onChange={event=>business.select(event.target.value)}><option value="">Selecione um espaço</option>{business.spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select>;
 }
 
-export function SharedResources({api,user,workspace,module,onBack,notify,Modal,onAnki}) {
+export function SharedNotebooks({api,user,workspace,onBack,notify}) {
   const [items,setItems]=useState([]),[opened,setOpened]=useState(null),[draft,setDraft]=useState(null),[pageId,setPageId]=useState(null);
-  const [reading,setReading]=useState(null),[editing,setEditing]=useState(false),[stale,setStale]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const [readingError,setReadingError]=useState(false);
+  const [editing,setEditing]=useState(false),[stale,setStale]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const editingRef=useRef(false),epoch=useRef(0);editingRef.current=editing;
   const editorRef=useRef();
-  useEffect(()=>{
-    if(!reading||!user||!workspace)return;
-    try{localStorage.setItem(readingKey(user,workspace,reading),JSON.stringify(readingState(reading)));setReadingError(false);}
-    catch{setReadingError(true);}
-  },[reading,user?.id,workspace?.id]);
   const load=useCallback(async()=>{
     const current=++epoch.current;
     if(!user||!workspace){setItems([]);return;}
     const rows=await api.call('teams','resources',{orgId:workspace.id});
     if(current!==epoch.current)return;
-    setItems(rows.filter(row=>row.module===module));
-    setOpened(current=>current&&rows.some(row=>row.module===module&&row.resource_id===current.resource_id)?current:null);
-    setReading(current=>current&&rows.some(row=>row.module==='books'&&row.resource_id===current.id&&row.content.hash===current.hash)?current:null);
+    const notebooks=rows.filter(row=>row.module==='notebooks');
+    setItems(notebooks);
+    setOpened(current=>current&&notebooks.some(row=>row.resource_id===current.resource_id)?current:null);
     return rows;
-  },[api,user?.id,workspace?.id,module]);
+  },[api,user?.id,workspace?.id]);
   useEffect(()=>{
-    setOpened(null);setDraft(null);setReading(null);setEditing(false);setError('');
+    setOpened(null);setDraft(null);setEditing(false);setError('');
     load().catch(error=>setError(error.message));
     const stop=api.subscribe('teams',event=>{
       if(event.type==='connection')return;
       if(editingRef.current)setStale(true);
-      load().catch(error=>{setItems([]);setOpened(null);setReading(null);setError(error.message);});
+      load().catch(error=>{setItems([]);setOpened(null);setError(error.message);});
     });
-    const refresh=()=>load().catch(error=>{setItems([]);setOpened(null);setReading(null);setError(error.message);});
+    const refresh=()=>load().catch(error=>{setItems([]);setOpened(null);setError(error.message);});
     window.addEventListener('focus',refresh);window.addEventListener('online',refresh);
     return()=>{epoch.current++;stop();window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);};
   },[load,api]);
@@ -104,22 +103,17 @@ export function SharedResources({api,user,workspace,module,onBack,notify,Modal,o
   async function open(row){
     setError('');setBusy(true);
     try{
-      const result=await api.call('teams',module==='books'?'downloadBook':'openResource',{orgId:workspace.id,module,resourceId:row.resource_id});
-      if(module==='books'){
-        let book=result.book;
-        try{const saved=JSON.parse(localStorage.getItem(readingKey(user,workspace,book))||'null');const restored={...book,...readingState(saved||{})};if(validBooks([restored]))book=restored;}catch{}
-        setReading(book);
-      }
-      else {setOpened(result);setDraft(structuredClone(result.content));setPageId(result.content.pages[0]?.id||null);setEditing(false);setStale(false);}
+      const result=await api.call('teams','openResource',{orgId:workspace.id,module:'notebooks',resourceId:row.resource_id});
+      setOpened(result);setDraft(structuredClone(result.content));setPageId(result.content.pages[0]?.id||null);setEditing(false);setStale(false);
     }catch(error){setError(error.message);}finally{setBusy(false);}
   }
   async function save(){
     setBusy(true);setError('');
-    try{await waitForImages();await api.call('teams','editResource',{orgId:workspace.id,module,resourceId:opened.resource_id,revision:opened.revision,content:draft});setEditing(false);setOpened(null);setDraft(null);setStale(false);await load();notify('Caderno compartilhado salvo.');}
+    try{await waitForImages();await api.call('teams','editResource',{orgId:workspace.id,module:'notebooks',resourceId:opened.resource_id,revision:opened.revision,content:draft});setEditing(false);setOpened(null);setDraft(null);setStale(false);await load();notify('Caderno compartilhado salvo.');}
     catch(error){setError(error.message);}finally{setBusy(false);}
   }
-  const title=module==='books'?'Livros compartilhados':'Cadernos compartilhados',note=draft?.pages.find(page=>page.id===pageId),Reader=reading?.format==='pdf'?PdfReader:ReflowReader;
-  return <section className="shared-page"><header className="page-heading"><div><button className="secondary" onClick={onBack}><ArrowLeft size={14}/>Voltar</button><h1>{title}</h1><p>Recursos publicados neste espaço e autorizados para sua conta.</p></div>{user&&workspace&&<button className="secondary" disabled={busy} onClick={synchronize}>{busy?'Sincronizando…':'Sincronizar compartilhados'}</button>}</header>
+  const note=draft?.pages.find(page=>page.id===pageId);
+  return <section className="shared-page"><header className="page-heading"><div><button className="secondary" onClick={onBack}><ArrowLeft size={14}/>Voltar</button><h1>Cadernos compartilhados</h1><p>Recursos publicados neste espaço e autorizados para sua conta.</p></div>{user&&workspace&&<button className="secondary" disabled={busy} onClick={synchronize}>{busy?'Sincronizando…':'Sincronizar compartilhados'}</button>}</header>
     {!user?<p>Entre na sua conta para acessar os compartilhados.</p>:!workspace?<p>Selecione um espaço ou aceite um convite no sininho de notificações.</p>:<>
       {error&&<p role="alert" className="form-error">{error}</p>}
       <div className="shared-resource-list">{items.map(row=><button className="secondary" key={row.resource_id} disabled={busy} onClick={()=>open(row)}>{row.content.name||row.content.title}</button>)}</div>
@@ -130,6 +124,5 @@ export function SharedResources({api,user,workspace,module,onBack,notify,Modal,o
         {note&&<><input aria-label="Título da página compartilhada" maxLength={200} value={note.title} disabled={!editing||busy} onChange={event=>setDraft(current=>current?({...current,pages:current.pages.map(page=>page.id===note.id?{...page,title:event.target.value}:page)}):current)}/><NoteEditor key={note.id} ref={editorRef} note={note} disabled={!editing||busy} notify={notify} onChange={changes=>setDraft(current=>current?({...current,pages:current.pages.map(page=>page.id===note.id?{...page,...changes}:page)}):current)}/></>}
       </section>}
     </>}
-    {reading&&<Suspense fallback={<p role="status">Abrindo livro…</p>}><Reader key={reading.id} book={reading} onAnki={onAnki?()=>onAnki(reading):undefined} saveError={readingError} onChange={change=>setReading(current=>typeof change==='function'?change(current):{...current,...change})} onClose={()=>setReading(null)}/></Suspense>}
   </section>;
 }

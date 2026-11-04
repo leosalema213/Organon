@@ -33,8 +33,19 @@ export function AccountBadge({ account, saveError, onClick }) {
   return <button type="button" className="account-badge" onClick={onClick} title="Abrir meu perfil" aria-label="Abrir meu perfil"><ProfileAvatar user={user} /><span><strong>{user.nickname || user.name || user.email.split('@')[0]}</strong><small role="status">{saveError ? 'Erro ao salvar neste computador' : syncMessage(account.status)}</small></span></button>;
 }
 
-export function CloudIndicator({ status }) {
-  return <span className="local-pill" title={status?.user ? syncMessage(status) : 'Dados salvos neste computador'}><span className="live-dot" />{!status?.user ? 'LOCAL' : status.busy ? 'SINCRONIZANDO' : status.error || status.pending ? 'ENVIO PENDENTE' : status.conflict ? 'CONFERIR CÓPIAS' : 'CONECTADO'}</span>;
+export function CloudIndicator({ status, onSync }) {
+  const [syncing, setSyncing] = useState(false);
+  const busy = syncing || status?.busy;
+  const pending = status?.user && !status.conflict && (status.error || status.pending);
+  const label = !status?.user ? 'LOCAL' : busy ? 'SINCRONIZANDO' : status.conflict ? 'CONFERIR CÓPIAS' : pending ? 'ENVIO PENDENTE' : 'CONECTADO';
+  const content = <><span className="live-dot" />{label}</>;
+  if (onSync && (syncing || pending && !status.busy)) {
+    return <button type="button" className="local-pill" title={busy ? 'Sincronizando…' : 'Sincronizar agora'} disabled={busy} onClick={async () => {
+      setSyncing(true);
+      try { await onSync(); } finally { setSyncing(false); }
+    }}>{content}</button>;
+  }
+  return <span className="local-pill" title={status?.user ? syncMessage(status) : 'Dados salvos neste computador'}>{content}</span>;
 }
 
 export function useCloudAccount(ready, { flush, restore, refreshShared }) {
