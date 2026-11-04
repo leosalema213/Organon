@@ -54,6 +54,14 @@ let app;
           const row = state.resources.find(row => row.org_id === payload.orgId && row.resource_id === payload.resourceId);
           return { book: row.content };
         }
+        if (action === 'unpublish') {
+          if (state.failNextUnpublish) { state.failNextUnpublish = false; throw new Error('Falha de teste'); }
+          const index = state.resources.findIndex(row => row.org_id === payload.orgId && row.resource_id === payload.resourceId && row.published_by === state.user.id && row.revision === payload.revision);
+          if (index === -1) throw new Error('Publicação ou revisão inválida');
+          state.resources.splice(index, 1);
+          window.webContents.send('modules:changed', { module: 'teams', type: 'invalidate' });
+          return {};
+        }
         if (action === 'publish') {
           state.saves.push({ ...payload, user: state.user.id });
           if (state.user.id === owner.id) {
@@ -108,10 +116,15 @@ let app;
     const alreadyShared = shareBook.getByRole('checkbox', { name: space, exact: true });
     await alreadyShared.waitFor();
     assert.equal(await alreadyShared.isChecked(), true);
-    assert.equal(await alreadyShared.isDisabled(), true);
+    assert.equal(await alreadyShared.isEnabled(), true);
   }
-  assert.equal(await shareBook.getByRole('button', { name: 'Compartilhar', exact: true }).isDisabled(), true);
-  await shareBook.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  const saveShares = shareBook.getByRole('button', { name: 'Salvar alterações', exact: true });
+  assert.equal(await saveShares.isDisabled(), true);
+  await shareBook.getByRole('checkbox', { name: 'Outro espaço', exact: true }).uncheck();
+  await saveShares.click();
+  await shareBook.waitFor({ state: 'hidden' });
+  await personalCard.getByTitle('Compartilhado · Espaço', { exact: true }).waitFor();
+  assert.deepEqual(await app.evaluate((_electron, id) => globalThis.sharingUi.resources.filter(row => row.resource_id === id).map(row => row.org_id), localBookId), ['cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
   assert.equal(await app.evaluate(() => globalThis.sharingUi.saves.length), 2);
   const sharedCard = page.locator('.reading-card').filter({ has: page.getByRole('heading', { name: 'Livro publicado', exact: true }) });
   await sharedCard.locator('.book-thumbnail img').waitFor();
@@ -133,9 +146,16 @@ let app;
   await app.evaluate(({ BrowserWindow }) => {
     const state = globalThis.sharingUi;
     state.resources.push({ ...state.resources[0], org_id: state.otherSpace.id, resource_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', content: { ...state.resources[0].content, hash: 'b'.repeat(64), format: 'epub', title: 'Novo livro recebido' } });
+    state.resources.push({ ...state.resources[0], org_id: state.otherSpace.id, resource_id: '77777777-7777-4777-8777-777777777777', content: { ...state.resources[0].content, hash: 'c'.repeat(64), format: 'epub', title: 'Publicação sem original' } });
     BrowserWindow.getAllWindows()[0].webContents.send('modules:changed', { module: 'teams', type: 'invalidate' });
   });
   await page.getByRole('heading', { name: 'Novo livro recebido', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Opções de Publicação sem original', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Excluir compartilhamento', exact: true }).click();
+  const deleteShare = page.getByRole('dialog', { name: 'Excluir compartilhamento?', exact: true });
+  await deleteShare.getByRole('button', { name: 'Excluir compartilhamento', exact: true }).click();
+  await deleteShare.waitFor({ state: 'hidden' });
+  await page.getByRole('heading', { name: 'Publicação sem original', exact: true }).waitFor({ state: 'hidden' });
   await nav.getByRole('button', { name: 'Equipes', exact: true }).click();
   await page.getByRole('button', { name: 'Rever permissões', exact: true }).click();
   const permissions = page.getByRole('dialog', { name: 'Rever permissões', exact: true });
@@ -145,6 +165,19 @@ let app;
   assert.equal(await permissions.getByRole('checkbox', { name: 'Livro sem publicação', exact: true }).count(), 0, 'Only published resources belong in access selection.');
   await permissions.getByRole('button', { name: 'Salvar permissões', exact: true }).click(); await permissions.waitFor({ state: 'hidden' });
   assert.equal(await app.evaluate(() => globalThis.sharingUi.grants.books.mode), 'selected');
+  await nav.getByRole('button', { name: 'Livros', exact: true }).click();
+  await personalCard.getByRole('button', { name: 'Opções de Livro pessoal para publicar', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Excluir livro', exact: true }).click();
+  const deleteBook = page.getByRole('dialog', { name: 'Excluir este livro?', exact: true });
+  await app.evaluate(() => { globalThis.sharingUi.failNextUnpublish = true; });
+  await deleteBook.getByRole('button', { name: 'Excluir livro', exact: true }).click();
+  await deleteBook.getByRole('alert').filter({ hasText: 'Não foi possível retirar todos' }).waitFor();
+  assert.equal(await personalCard.count(), 1);
+  await deleteBook.getByRole('button', { name: 'Excluir livro', exact: true }).click();
+  await deleteBook.waitFor({ state: 'hidden' });
+  await personalCard.waitFor({ state: 'hidden' });
+  assert.equal(await app.evaluate((_electron, id) => globalThis.sharingUi.resources.some(row => row.resource_id === id), localBookId), false);
+  await nav.getByRole('button', { name: 'Equipes', exact: true }).click();
   await app.evaluate(({ BrowserWindow }) => {
     const state = globalThis.sharingUi; state.user = state.guest;
     BrowserWindow.getAllWindows()[0].webContents.send('cloud:status', { enabled: true, promptSeen: true, user: state.user, busy: false });
@@ -159,7 +192,25 @@ let app;
   await sharedCard.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('document', { name: 'Página 1', exact: true }).locator('.textLayer span').first().waitFor();
   await page.getByRole('button', { name: 'Fechar leitor', exact: true }).click();
-  console.log('Atalhos de Preferências e sincronização, biblioteca integrada, capa PDF, filtro de origem, progresso por conta e compartilhamento aprovados com servidor simulado.');
+  await sharedCard.getByRole('button', { name: 'Opções de Livro publicado', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Baixar cópia', exact: true }).click();
+  await page.getByText('Cópia salva na sua biblioteca.', { exact: true }).waitFor();
+  assert.equal(await sharedCard.count(), 1);
+  await sharedCard.getByTitle('Compartilhado · Espaço', { exact: true }).waitFor();
+  const savedCopy = JSON.parse(fs.readFileSync(path.join(profile, 'compasso.json'), 'utf8')).books.find(book => book.hash === pdfHash);
+  assert(savedCopy && savedCopy.id !== 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' && !savedCopy.orgId);
+  await page.getByRole('heading', { name: 'Novo livro recebido', exact: true }).waitFor();
+  await app.evaluate(({ BrowserWindow }) => {
+    globalThis.sharingUi.resources = [];
+    BrowserWindow.getAllWindows()[0].webContents.send('modules:changed', { module: 'teams', type: 'invalidate' });
+  });
+  await page.getByRole('heading', { name: 'Novo livro recebido', exact: true }).waitFor({ state: 'hidden' });
+  await sharedCard.getByRole('img', { name: 'Livro compartilhado', exact: true }).waitFor({ state: 'hidden' });
+  assert.equal(await sharedCard.count(), 1);
+  await sharedCard.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByRole('document', { name: 'Página 1', exact: true }).locator('.textLayer span').first().waitFor();
+  await page.getByRole('button', { name: 'Fechar leitor', exact: true }).click();
+  console.log('Biblioteca e ciclo de compartilhamento aprovados: retirada por espaço, exclusão com nova tentativa e cópia pessoal preservada após revogação. Servidor simulado.');
 })().catch(error => { console.error(error.stack || error); process.exitCode = 1; }).finally(async () => {
   if (app) await app.close();
   const target = path.resolve(profile);

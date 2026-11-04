@@ -6,6 +6,12 @@ Prefira alterações incrementais e localizadas. Preserve a estrutura dos arquiv
 
 Quando um ajuste afetar um componente compartilhado, faça a correção na origem comum e revise todos os usos e estilos locais que possam sobrescrevê-la.
 
+## Ciclo de vida de funcionalidades
+
+- Antes de implementar uma funcionalidade, examine o fluxo existente e mapeie todas as etapas relevantes para o usuário. Considere como criar ou importar, consultar, editar, remover e desfazer cada ação quando fizer sentido. Para livros, confira como renomear, excluir, compartilhar, retirar o compartilhamento e o que acontece com as cópias dos destinatários.
+- Verifique o fluxo completo, incluindo estados anteriores à mudança, permissões de cada pessoa, falhas parciais e novas tentativas quando aplicáveis. Documente os fluxos que envolvem várias etapas ou dados compartilhados para orientar a implementação e a validação.
+- O usuário é a fonte da verdade sobre o comportamento esperado. Se houver dúvida sobre uma regra, etapa ou limite do pedido, pergunte e aguarde a resposta antes de avançar na parte que depende dessa decisão.
+
 ## Testes e validação com o usuário
 
 - Por preferência explícita do usuário, a execução dos testes fica, por padrão, no terminal dele. Não rode automaticamente suítes completas, integrações/E2E ou verificações amplas de cores e aparência.

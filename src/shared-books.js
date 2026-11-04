@@ -4,6 +4,26 @@ import { validBooks } from './books.js';
 const progressFields = ['page', 'pageCount', 'furthestPage', 'location', 'fraction', 'furthestFraction', 'view', 'completedAt'];
 const progressKey = (userId, book) => `organon.shared-reading.v1:${userId}:${book.orgId}:${book.id}:${book.hash}`;
 
+export async function findBookShares(api, space, book, userId) {
+  const rows = await api.call('teams', 'resources', { orgId: space.id });
+  const copies = rows.filter(row => row.module === 'books' && (row.resource_id === book.id || row.content?.hash === book.hash));
+  const own = copies.filter(row => (row.published_by || space.owner_id) === userId);
+  return { own, other: copies.length > own.length };
+}
+
+export async function removeBookShares(api, orgId, copies, active) {
+  for (const copy of copies) {
+    if (!active()) return;
+    await api.call('teams', 'unpublish', { orgId, module: 'books', resourceId: copy.resource_id, revision: copy.revision });
+  }
+}
+
+export function personalBookCopy(book) {
+  const { title, format, hash, size } = book;
+  return { id: crypto.randomUUID(), title, format, hash, size, planIds: [], importedAt: new Date().toISOString(),
+    ...Object.fromEntries(progressFields.filter(field => Object.hasOwn(book, field)).map(field => [field, book[field]])) };
+}
+
 function restoreProgress(userId, book) {
   try {
     const saved = JSON.parse(localStorage.getItem(progressKey(userId, book)) || 'null');
@@ -33,7 +53,7 @@ export function useSharedBooks(api, userId, spaces) {
         return rows.filter(row => row.module === 'books').flatMap(row => {
           const { title, hash, size, format } = row.content || {};
           const id = row.resource_id;
-          const book = { id, title, hash, size, format, orgId, sharedKey: `${orgId}:${id}:${hash}`,
+          const book = { id, title, hash, size, format, orgId, publishedBy: row.published_by || spaces.find(space => space.id === orgId)?.owner_id, sharedKey: `${orgId}:${id}:${hash}`,
             planIds: [], page: 1, pageCount: null, furthestPage: 0, completedAt: null, importedAt: new Date().toISOString(),
             view: { spread: 1, zoom: 1, contrast: 'paper' } };
           return validBooks([book]) ? [book] : [];

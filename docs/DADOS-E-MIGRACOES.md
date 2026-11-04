@@ -2,7 +2,7 @@
 
 ## Compartilhamento por membros — contrato 0.6.0, servidor aplicado e validado
 
-- O menu de um livro pessoal consulta as cópias existentes por espaço. Uma cópia já disponível aparece marcada e não é publicada de novo. É possível publicar nos demais espaços e gerenciar cópias existentes em Equipes → Compartilhamento. Uma falha deixa apenas o destino que falhou selecionado para nova tentativa. O fluxo reutiliza o contrato de publicação existente, sem campos novos no snapshot, no backup ou no payload de sincronização e sem migração no Supabase.
+- O [ciclo de vida dos livros](CICLO-DE-VIDA-DOS-LIVROS.md) documenta publicação, retirada, exclusão e cópia pessoal. A retirada usa a publicação e revisão existentes. Uma cópia pessoal usa o modelo de livro importado, com novo ID e o mesmo hash. O fluxo não exige campos novos no snapshot, no backup ou no payload de sincronização nem migração no Supabase.
 
 - `supabase/modules/sharing.sql`, após `teams.sql` e `inbox.sql`, adiciona `published_by` às cópias compartilhadas. A migração atribui as cópias existentes ao proprietário do espaço; preserva IDs, conteúdo e revisões. Novas publicações usam a identidade autenticada do servidor.
 - Livros passam a aceitar `selected`, além de `all`/`none`, na interface, IPC e autorização do servidor. A seleção lista somente cópias já publicadas no espaço. Financeiro continua sem seleção individual; MEI e os estudos pessoais não são compartilhados.

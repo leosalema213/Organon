@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.6.5
+
+- Retirar o compartilhamento de um livro ao desmarcar o espaço e salvar.
+- Retirar as publicações da conta ao excluir o original e permitir a remoção de publicações antigas sem original local.
+- Baixar uma cópia pessoal pelo cartão compartilhado, preservando o progresso do leitor e um único cartão por arquivo.
+
 ## 0.6.4
 
 - Exibir livros pessoais e compartilhados na mesma biblioteca, com capa, filtro por origem e progresso individual para cada conta.
