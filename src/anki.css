@@ -54,7 +54,7 @@ html[data-theme=dark] .anki-ratings button:last-child { background:#23362b; colo
 @keyframes anki-card-exit { to { opacity:0; transform:translateX(-40px) rotate(-2deg); } }
 @media(prefers-reduced-motion:reduce) { .anki-card-stage,.anki-card-leaving { animation:none; }.anki-flip { transition:none; } }
 .anki-typed { display: block; width: min(500px, 100%); margin: 0 auto; }
-.anki-search { margin-bottom: 18px; }.anki-search input { flex: 1; min-width: 120px; }
+.anki-search { margin-bottom: 18px; }.anki-search input[aria-label="Buscar cartas"] { flex: 1; min-width: 120px; }.anki-search input[type="date"] { flex: 0 1 150px; width: 150px; min-width: 0; max-width: 100%; }
 .anki-browser { max-height: 65vh; overflow: auto; font-size:12px; }.anki-browser article { padding: 12px 14px; display: flex; gap: 12px; border-bottom: 1px solid var(--border); }
 .anki-browse-text { flex: 1; min-width: 0; text-align: left; }.anki-browse-text strong { display: block; overflow-wrap: anywhere; font-weight: 500; }.anki-browse-text small { display: block; color: var(--muted); margin-top: 8px; }
 .anki-editor label { display: block; margin: 12px 0; font-size: 13px; }.anki-editor input:not([type=checkbox]), .anki-editor textarea, .anki-editor select { display: block; width: 100%; margin-top: 7px; }.anki-editor textarea { resize: vertical; min-height: 80px; }

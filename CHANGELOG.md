@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.6.6
+
+- Filtrar cartas por data de criação e exibir as mais recentes primeiro no Explorar.
+- Editar notas pelo botão ao lado da ação de suspender cartas.
+
 ## 0.6.5
 
 - Retirar o compartilhamento de um livro ao desmarcar o espaço e salvar.

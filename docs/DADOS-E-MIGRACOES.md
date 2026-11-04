@@ -271,3 +271,8 @@ Validação recebida em 03/11/2026: interface integrada aprovada em perfil tempo
 - O empacotamento das prévias `0.5.9-preview.1` e `0.5.9-preview.2` conferiu os 219 arquivos por tamanho/SHA-256. Publicação da 0.5.9 autorizada pelo usuário após os ajustes. A inspeção de segurança não trouxe alertas novos; permanecem os avisos anteriores de [RLS sem política na tabela interna de throttle](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) e [proteção de senhas vazadas desativada](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection), fora desta alteração.
 
 Ao criar novos campos, registrar formato/defaults, compatibilidade de leitura, transporte no backup e snapshot e testes relevantes. Preparar SQL apenas se houver alteração real da estrutura relacional/RPC/permissões. Aplicação remota e testes no servidor de cada mudança futura ficam pendentes até haver resultado confirmado; transporte simulado não comprova serviço real. Não enviar dados pessoais como fixture de teste.
+
+
+### Data de criação no Explorar do Anki
+
+Novas cartas recebem `createdAt` em milissegundos, independente da posição de estudo. O campo é opcional em perfis e backups anteriores e integra o snapshot JSON existente, inclusive backup e sincronização, sem DDL. Para cartas importadas anteriores, usa-se `source.id` quando representa um timestamp válido; para cartas locais antigas, `position` é usada somente quando representa um timestamp válido a partir de 1e12. Posições aleatórias antigas e valores inválidos ficam sem data conhecida. A ordenação e o filtro não alteram os dados existentes.

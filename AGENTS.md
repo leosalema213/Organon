@@ -1,5 +1,10 @@
 # Regras do projeto
 
+## Registro de ideias e pendências
+
+- O arquivo de referência é `PENDENCIAS.md`, na raiz deste projeto. Quando o usuário pedir para consultar as pendências, abra esse arquivo; quando pedir para anotar uma ideia, bug ou correção nas pendências, registre ali em checklist.
+- Pedidos de anotação não autorizam implementar os itens. Preserve o histórico e marque um item como concluído somente após implementar e validar, quando solicitado pelo usuário.
+
 ## Edições
 
 Prefira alterações incrementais e localizadas. Preserve a estrutura dos arquivos e mantenha o diff pequeno. Não reescreva arquivos inteiros nem use delete + recreate, salvo necessidade estrutural real.

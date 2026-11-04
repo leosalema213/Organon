@@ -101,7 +101,22 @@ export function queue(a, deckId, now = Date.now()) {
   return [...ready, ...ahead];
 }
 export function counts(a, deckId, now = Date.now()) { const q = queue(a, deckId, now); return { new: q.filter(c => c.state === 0).length, learn: q.filter(c => [1, 3].includes(c.state)).length, due: q.filter(c => c.state === 2).length }; }
-export function newCard(noteId, deckId, ord = 0, position = Date.now()) { return { id: crypto.randomUUID(), noteId, deckId, ord, position, state: 0, due: 0, interval: 0, ease: 2.5, reps: 0, lapses: 0, step: 0, suspended: false }; }
+export function cardCreatedAt(card) {
+  const valid = value => Number.isSafeInteger(value) && value >= 1e12 && value <= Date.now();
+  if (valid(card.createdAt)) return card.createdAt;
+  const imported = Number(card.source?.id);
+  if (valid(imported)) return imported;
+  if (!card.source && valid(card.position)) return card.position;
+  return null;
+}
+export function cardCreatedOn(card, day) {
+  const timestamp = cardCreatedAt(card);
+  if (timestamp === null) return false;
+  const date = new Date(timestamp);
+  const localDay = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  return localDay === day;
+}
+export function newCard(noteId, deckId, ord = 0, position = Date.now()) { return { id: crypto.randomUUID(), noteId, deckId, ord, position, createdAt: Date.now(), state: 0, due: 0, interval: 0, ease: 2.5, reps: 0, lapses: 0, step: 0, suspended: false }; }
 export function schedule(a, card, rating, now = Date.now()) {
   const deck = a.decks.find(d => d.id === card.deckId), o = optionsFor(a, deck, now);
   const c = { ...card, reps: card.reps + 1, lastReview: now }, rollover = a.settings.rollover;

@@ -20,7 +20,7 @@ const root = path.resolve(__dirname, '..'); let app, folder;
     await page.waitForFunction(async expected => (await window.desktop.load()).anki.notes.length === expected, index + 1);
   }
   await dialog.getByRole('button', { name: 'Criar carta', exact: true }).click(); assert.equal((await page.evaluate(() => window.desktop.load())).anki.notes.length, 2);
-  await dialog.getByRole('button', { name: 'Fechar', exact: true }).click(); await page.getByRole('button', { name: 'Explorar', exact: true }).click(); await page.locator('.anki-browse-text').filter({ hasText: 'Bom dia' }).first().click();
+  await dialog.getByRole('button', { name: 'Fechar', exact: true }).click(); await page.getByRole('button', { name: 'Explorar', exact: true }).click(); await page.locator('.anki-browser article').filter({ hasText: 'Bom dia' }).first().getByRole('button', { name: 'Editar nota' }).click();
   const edit = page.getByRole('dialog', { name: 'Editar nota', exact: true }); await edit.getByRole('textbox', { name: 'Verso', exact: true }).fill('Good morning!'); await edit.getByRole('button', { name: 'Salvar nota', exact: true }).click(); await edit.waitFor({ state: 'detached' });
   await page.waitForFunction(async () => (await window.desktop.load()).anki.notes.some(note => note.fields[1].includes('Good morning!')));
   const saved = (await page.evaluate(() => window.desktop.load())).anki;
