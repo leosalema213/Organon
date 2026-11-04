@@ -7,6 +7,8 @@ let app;
 (async () => {
   const { seed } = await import('../src/model.js'), { basicModel, newCard } = await import('../src/anki.js');
   const fixture = { ...seed(), onboardingCompleted: true }, deckId = crypto.randomUUID(), noteId = crypto.randomUUID();
+  const localBookId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  fixture.books = [{ id: localBookId, title: 'Livro pessoal para publicar', format: 'pdf', hash: 'a'.repeat(64), size: 10, planIds: [], page: 1, furthestPage: 0, pageCount: null, completedAt: null, importedAt: new Date().toISOString(), view: { spread: 1, zoom: 1, contrast: 'paper' } }];
   fixture.anki.models = [basicModel]; fixture.anki.decks = [{ id: deckId, name: 'Revisões', presetId: 'default' }];
   fixture.anki.notes = [{ id: noteId, modelId: basicModel.id, fields: ['Frente', 'Verso'], tags: [] }];
   fixture.anki.cards = [2, 1, 0].map(state => ({ ...newCard(noteId, deckId), state, due: Date.now() - 10000 }));
@@ -19,6 +21,7 @@ let app;
     window.webContents.session.webRequest.onBeforeRequest({ urls: ['http://*/*','https://*/*'] }, (_details, callback) => callback({ cancel: true }));
     const owner = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Dono', nickname: 'Dono' }, guest = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Convidado', nickname: 'Convidado' };
     const workspace = { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Espaço', owner_id: owner.id };
+    const otherSpace = { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccd', name: 'Outro espaço', owner_id: owner.id };
     const grants = { books: { mode: 'all', ids: [], write: false } };
     const state = globalThis.sharingUi = { owner, guest, workspace, user: owner, grants, downloaded: [], saves: [], resources: [{ org_id: workspace.id, module: 'books', resource_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', published_by: owner.id, revision: 1, content: { title: 'Livro publicado' } }] };
     const status = () => ({ enabled: true, promptSeen: true, user: state.user, busy: false, pending: false });
@@ -26,7 +29,7 @@ let app;
     ipcMain.removeHandler('modules:watch'); ipcMain.handle('modules:watch', () => ({ connected: true, realtime: false }));
     ipcMain.removeHandler('modules:call'); ipcMain.handle('modules:call', (_event, module, action, payload) => {
       if (module === 'teams') {
-        if (action === 'list') return [workspace];
+        if (action === 'list') return [workspace, otherSpace];
         if (action === 'inbox') return { notifications: [], invitations: [], unreadCount: 0 };
         if (action === 'roster') return [{ id: 'member', user_id: guest.id, name: guest.name, status: 'accepted', role: 'member', revision: 1, grants: state.grants }];
         if (action === 'catalog') return { books: [{ id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', name: 'Livro pessoal para publicar' }], notebooks: [] };
@@ -44,6 +47,19 @@ let app;
   const heading = page.locator('.content .page-heading');
   assert.equal(await heading.getByRole('button', { name: 'Livros compartilhados', exact: true }).count(), 1);
   assert.equal(await heading.getByRole('button', { name: 'Importar livros', exact: true }).count(), 1);
+  assert.equal(await page.getByText('MEUS PLANOS', { exact: true }).count(), 0);
+  await page.getByRole('button', { name: 'Opções de Livro pessoal para publicar', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Compartilhar livro', exact: true }).click();
+  const shareBook = page.getByRole('dialog', { name: 'Compartilhar livro', exact: true });
+  await shareBook.getByRole('checkbox', { name: 'Espaço', exact: true }).check();
+  await shareBook.getByRole('checkbox', { name: 'Outro espaço', exact: true }).check();
+  await shareBook.getByRole('button', { name: 'Compartilhar', exact: true }).click();
+  await shareBook.waitFor({ state: 'hidden' });
+  const publications = await app.evaluate(() => globalThis.sharingUi.saves);
+  assert.deepEqual(publications.map(({ orgId, module, resourceId, revision }) => [orgId, module, resourceId, revision]), [
+    ['cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'books', localBookId, 0],
+    ['cccccccc-cccc-4ccc-8ccc-cccccccccccd', 'books', localBookId, 0],
+  ]);
   await heading.getByRole('button', { name: 'Livros compartilhados', exact: true }).click();
   await page.getByRole('button', { name: 'Livro publicado', exact: true }).waitFor();
   await app.evaluate(({ BrowserWindow }) => {
@@ -70,7 +86,7 @@ let app;
   await page.getByRole('button', { name: 'Compartilhamento', exact: true }).click();
   await page.getByRole('button', { name: 'Publicar cópia', exact: true }).click();
   await page.waitForFunction(() => globalThis.desktop && document.querySelector('.teams-page')?.getAttribute('aria-busy') === 'false');
-  assert.equal(await app.evaluate(() => globalThis.sharingUi.saves[0]?.user), 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  assert.equal(await app.evaluate(() => globalThis.sharingUi.saves.at(-1)?.user), 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
   assert.equal(await page.getByRole('button', { name: 'Convidar pessoa', exact: true }).count(), 0);
   console.log('Contador Anki, ações de Livros, recebimento por evento, sincronização, Livros selecionados e publicação pelo convidado aprovados. Perfil temporário e servidor simulado; SQL remoto não validado.');
 })().catch(error => { console.error(error.stack || error); process.exitCode = 1; }).finally(async () => {

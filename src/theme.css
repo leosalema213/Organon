@@ -26,11 +26,11 @@
   box-shadow: inset 0 1px #ffffff04,0 4px 15px #0000000a;
 }
 [data-theme="dark"] :is(h1,h2,h3,.brand,.card-heading h3,.overview-card h2,.stat-card>strong,.player-info strong,.player-time,.block-name strong) { color: #e8e8e8; }
-[data-theme="dark"] :is(.page-heading p,.section-heading p,.stat-card p,.sidebar nav button,.sidebar-plans>button,.settings-button,.local-badge,.profile,.block-name small,.block-duration,.card-heading p,.notes-link,.date-switch,.tabs button,.card-footer,.filter-hint,.overview-meta,.overview-actions>button:first-child,.overview-card>p,.muted,.metrics-help,.history-card td,.player-info small,.player-state,.compact-button,.confirm-text) { color: #9b9b9b; }
+[data-theme="dark"] :is(.page-heading p,.section-heading p,.stat-card p,.sidebar nav button,.settings-button,.local-badge,.profile,.block-name small,.block-duration,.card-heading p,.notes-link,.date-switch,.tabs button,.card-footer,.filter-hint,.overview-meta,.overview-actions>button:first-child,.overview-card>p,.muted,.metrics-help,.history-card td,.player-info small,.player-state,.compact-button,.confirm-text) { color: #9b9b9b; }
 [data-theme="dark"] :is(.workspace-label,.stat-label,.eyebrow,.topbar,.topbar>div>span:first-child,.brand span:not(.brand-mark),.local-badge small,.profile small,.block-number,.chart-y,.chart-column>span,.chart-card>div:first-child>span,.history-card th,.note-item small,.note-item p,footer,.player-info small span,.player-time small) { color: #747474; }
 [data-theme="dark"] .brand-mark { background: linear-gradient(145deg,#363636,#171717);color:#e8e8e8;box-shadow:inset 0 1px #ffffff26,0 4px 10px #0004;border:1px solid #ffffff14; }
 [data-theme="dark"] .brand span:not(.brand-mark) { color:#686868; }
-[data-theme="dark"] .sidebar nav button:hover,[data-theme="dark"] .sidebar-plans>button:hover { background:#ffffff06;color:#eee; }
+[data-theme="dark"] .sidebar nav button:hover { background:#ffffff06;color:#eee; }
 [data-theme="dark"] .sidebar nav button.nav-active { background:#ffffff0b;color:#e8e8e8;box-shadow:inset 0 1px #ffffff05; }
 [data-theme="dark"] :is(.nav-count,.profile>span,.section-heading h2 span,.tabs button span) { background:#ffffff0a;color:#aaa; }
 [data-theme="dark"] :is(.profile,.window-separator,.block-list,.study-block,.card-footer,.overview-actions,.note-toolbar,.modal-actions,.modal-heading,.note-images img,.history-card td,.history-card th) { border-color:#ffffff0b; }

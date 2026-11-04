@@ -17,10 +17,10 @@ export default function Permissions({ value, onChange, catalog = {}, disabled = 
         {grant.mode === 'selected' && <div className="teams-resource-options">
           {(catalog[module] || []).map(item => <label className="teams-check" key={item.id}><input type="checkbox" checked={grant.ids.includes(item.id)} onChange={e => change(module, { ids: e.target.checked ? [...grant.ids, item.id] : grant.ids.filter(id => id !== item.id) })} />{item.name}</label>)}
           {grant.ids.filter(id => !(catalog[module] || []).some(item => item.id === id)).map(id => <label className="teams-check" key={id}><input type="checkbox" checked onChange={() => change(module, { ids: grant.ids.filter(x => x !== id) })} />Recurso fora do catálogo ({id})</label>)}
-          {!(catalog[module] || []).length && <small>Não há recursos disponíveis neste catálogo. Publique os livros ou cadernos antes de selecioná-los.</small>}
+          {!(catalog[module] || []).length && <small>{module === 'books' ? 'Nenhum livro compartilhado neste espaço. Em Livros, abra o menu do cartão e escolha Compartilhar livro.' : 'Nenhum recurso disponível neste espaço.'}</small>}
         </div>}
       </div>;
     })}
-    <small>MEI, meu dia, planos, progresso, notas e Anki permanecem pessoais. Cadernos e livros só aparecem para a equipe após a publicação de uma cópia individual.</small>
+    <small>MEI, meu dia, planos, progresso, notas e Anki permanecem pessoais. “Todos, incluindo futuros” dá acesso às cópias compartilhadas neste espaço. A importação de um livro adiciona o original à biblioteca pessoal.</small>
   </fieldset>;
 }

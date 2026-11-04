@@ -21,7 +21,8 @@
   --block-height:63px; --block-y:11px; --block-font:13px; --card-footer-y:13px;
   --brand-height:104px; --player-height:78px;
 }
-.sidebar { width:var(--sidebar-width); }
+.sidebar { width:var(--sidebar-width);min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin; }
+.sidebar > * { flex-shrink:0; }
 .brand { height:var(--brand-height);font-size:24px;padding:0 8px;gap:8px; }
 .brand-mark { flex-shrink:0; }
 .brand .app-version { display:block;font-size:9px;line-height:1;font-weight:400;letter-spacing:.2px;color:#999;margin-top:5px; }
@@ -29,8 +30,6 @@
 .sidebar nav button,.settings-button { white-space:nowrap; }
 .workspace-label { padding-top:12px;padding-bottom:9px; }
 .sidebar nav button { height:38px; }
-.sidebar-plans { margin-top:16px; }
-.sidebar-plans>button { padding-top:9px;padding-bottom:9px; }
 .sidebar-bottom { padding-top:15px; }
 .settings-button { padding-bottom:16px; }
 .topbar { height:var(--header-height);min-height:var(--header-height);padding-left:var(--page-x); }

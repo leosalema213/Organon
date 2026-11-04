@@ -2,6 +2,8 @@
 
 ## Compartilhamento por membros — contrato 0.6.0, servidor aplicado e validado
 
+- O menu de um livro pessoal pode publicar ou atualizar uma cópia em vários espaços escolhidos explicitamente. Cada espaço usa a própria revisão e as permissões já existentes. Uma falha deixa apenas o destino que falhou selecionado para nova tentativa. O fluxo reutiliza o contrato de publicação existente, sem campos novos no snapshot, no backup ou no payload de sincronização e sem migração no Supabase.
+
 - `supabase/modules/sharing.sql`, após `teams.sql` e `inbox.sql`, adiciona `published_by` às cópias compartilhadas. A migração atribui as cópias existentes ao proprietário do espaço; preserva IDs, conteúdo e revisões. Novas publicações usam a identidade autenticada do servidor.
 - Livros passam a aceitar `selected`, além de `all`/`none`, na interface, IPC e autorização do servidor. A seleção lista somente cópias já publicadas no espaço. Financeiro continua sem seleção individual; MEI e os estudos pessoais não são compartilhados.
 - Membros aceitos podem publicar seus próprios livros/cadernos e atualizar/remover suas próprias cópias. Não podem substituir as de outro autor. O proprietário mantém a gestão do espaço e pode remover cópias. A autoria concede acesso à própria cópia enquanto a participação estiver aceita; revogação retira também esse acesso.
