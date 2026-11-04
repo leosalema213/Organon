@@ -57,7 +57,7 @@ let app, directory;
     await page.waitForFunction(async () => (await window.desktop.load()).anki.reviews.length === 1);
     const saved = await page.evaluate(() => window.desktop.load()); assert.equal(saved.anki.reviews[0].rating, 3); assert.equal(saved.anki.cards[0].state, 1); assert.equal(saved.anki.cards[0].step, 1);
     await page.getByRole('button', { name: 'Desfazer última resposta', exact: true }).click();
-    await page.getByRole('button', { name: 'Estudar agora', exact: true }).click();
+    await front.getByText(/Como se diz/).waitFor();
     await page.getByRole('button', { name: /Mostrar resposta/ }).click();
     await page.getByRole('button', { name: /Errei/ }).click();
     await page.getByRole('heading', { name: 'Revisões em dia por enquanto.', exact: true }).waitFor();

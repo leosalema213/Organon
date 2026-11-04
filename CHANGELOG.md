@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.6.1
+
+- Voltar à carta anterior ao desfazer uma resposta, inclusive no fim da fila.
+- Abrir diretamente o baralho quando o atalho de um plano tem um único baralho vinculado.
+
 ## 0.6.0
 
 - Criar cartas Anki durante a leitura, reutilizando os baralhos vinculados aos planos do livro e permitindo escolher ou criar um baralho sem sair do leitor.
