@@ -15,8 +15,9 @@ function prune({ dryRun = false } = {}) {
   });
   // Never remove a previous usable build when the current installer has not completed.
   const current = builds.find(build => build.name === version);
-  if (!current || !fs.existsSync(path.join(current.target, 'Organon-Instalar.exe')) && !fs.existsSync(path.join(current.target, `Organon-${version}-Portatil.exe`))) throw new Error('Gere o instalador atual antes de limpar compilações anteriores.');
-  const previous = builds.filter(build => build !== current).sort((a, b) => b.time - a.time)[0];
+  const hasInstaller = build => fs.existsSync(path.join(build.target, 'Organon-Instalar.exe')) || fs.existsSync(path.join(build.target, `Organon-${build.name}-Portatil.exe`));
+  if (!current || !hasInstaller(current)) throw new Error('Gere o instalador atual antes de limpar compilações anteriores.');
+  const previous = builds.filter(build => build !== current && hasInstaller(build)).sort((a, b) => b.time - a.time)[0];
   const removed = builds.filter(build => build !== current && build !== previous);
   console.log(`Manter: ${[current, previous].filter(Boolean).map(build => build.name).join(', ')}`);
   for (const build of removed) {
