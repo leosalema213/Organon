@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.6.3
+
+- Corrigir a rolagem da barra lateral e remover a lista Meus planos.
+- Compartilhar um livro diretamente pelo menu do cartão, com seleção de um ou vários espaços e respeito às permissões de cada equipe.
+
 ## 0.6.2
 
 - Editar o título e os planos vinculados pelo menu de opções do cartão, que também reúne a exclusão.

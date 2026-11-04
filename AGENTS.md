@@ -16,11 +16,11 @@ Quando um ajuste afetar um componente compartilhado, faça a correção na orige
 
 ## Encerramento de um lote e publicação
 
-- Implemente e valide todos os pedidos do lote, incluindo mensagens adicionais recebidas durante o trabalho.
-- Antes de fazer commit, push, criar tag ou publicar uma Release, pergunte ao usuário se ele terminou de enviar os ajustes e se autoriza o commit e a publicação.
-- Espere uma confirmação explícita. Pedidos anteriores de publicação não substituem a confirmação de encerramento do lote atual. Não considere silêncio ou tempo decorrido como autorização.
-- Enquanto aguarda, pode deixar código, testes, preview e instalador local prontos para revisão, sem publicar.
-- Depois da confirmação, publique somente o lote aprovado. Se chegar outro pedido antes da publicação, incorpore-o, valide e confirme novamente o encerramento.
+- Ao terminar as correções e a validação técnica do lote, pergunte se o usuário tem mais algum ajuste ou pedido. Incorpore os pedidos adicionais antes de encerrar o lote.
+- Quando o usuário disser que terminou de enviar ajustes, gere um instalador de preview com versão própria e entregue para ele testar.
+- Aguarde a validação explícita do preview e a autorização para subir. Nesse contexto, “subir”, “pode subir” e “suba o commit” autorizam o fluxo completo: promover a versão, gerar o instalador estável e seus checksums, fazer commit e push do lote aprovado, publicar a Release e conferir se ela está disponível no canal de atualização.
+- Antes de commit, push, tag ou Release, confirme o encerramento do lote atual. A validação do preview acompanhada de autorização para subir já é essa confirmação. Silêncio, tempo decorrido e autorizações de lotes anteriores não valem como confirmação.
+- Se chegar outro pedido antes da publicação, incorpore-o, gere um novo preview e confirme novamente o encerramento após a validação.
 
 ## Versões
 
