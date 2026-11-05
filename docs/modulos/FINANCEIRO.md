@@ -8,7 +8,7 @@ Referências: `Z:\financas\src\pages\Financeiro.tsx`, `src/lib/api/entries.ts`, 
 
 - Tabela de descrição, valor BRL, categoria, natureza e data, mais recentes primeiro. Data legada usa `entryDate ?? createdAt.slice(0,10)`.
 - Filtro padrão por mês/ano atual; opções dia e exibir tudo; filtros combinados de categoria e natureza (`entrada`, `gasto`, `projetado`). Limpar restaura modo mês, mantém mês escolhido e remove natureza/categoria.
-- Totais calculados sobre a seleção: entradas, gastos e saldo = entradas − gastos. Projetados não compõem saldo. Acrescentado total explícito de projetados e agrupamento opcional por categoria/natureza, sem mudar a seleção nem os cálculos.
+- Os valores principais mostram entradas confirmadas, gastos e saldo (entradas confirmadas menos gastos). Quando a seleção filtrada inclui lançamentos projetados, os cartões de Entradas e Saldo exibem uma linha secundária com a soma dos projetados ao respectivo valor principal.
 - Criar/editar descrição, categoria, valor, natureza, data; checkbox `countForMei` aparece em entradas e é preservado ao mudar natureza. Default novo/legado ausente: true, como o formulário original. Novas datas usam mês selecionado e dia atual, limitado ao fim do mês.
 - Criar categoria dentro do formulário, selecionar a criada (ou existente normalizada). Origem não oferece edição/exclusão de categorias nesta página; não foram introduzidas operações destrutivas de categorias.
 - Editar pela descrição ou menu compartilhado; excluir com confirmação explícita e revisão esperada.

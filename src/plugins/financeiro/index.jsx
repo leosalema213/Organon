@@ -85,7 +85,17 @@ function FinanceiroScope({ api, user, workspace }) {
     </div></header>
     <Notice error={error} />
     {!loading && !error && !canWrite && <p className="muted">Você tem acesso de leitura a este financeiro.</p>}
-    <div className="financeiro-summary">{[['entrada', 'Entradas'], ['gasto', 'Gastos'], ['saldo', 'Saldo']].map(([key, label]) => <article key={key} className={`financeiro-total financeiro-${key}`}><span>{label}</span><strong>{formatMoney(summary[key])}</strong></article>)}</div>
+    <div className="financeiro-summary">
+      {[['entrada', 'Entradas'], ['gasto', 'Gastos'], ['saldo', 'Saldo']].map(([key, label]) => (
+        <article key={key} className={`financeiro-total financeiro-${key}`}>
+          <span>{label}</span>
+          <strong className={key === 'saldo' && summary.saldo !== '0' && !summary.saldo.startsWith('-') ? 'financeiro-positive' : undefined}>{formatMoney(summary[key])}</strong>
+          {summary.comProjecao?.[key] !== undefined && (
+            <span className="financeiro-projection">Projetado {formatMoney(summary.comProjecao[key])}</span>
+          )}
+        </article>
+      ))}
+    </div>
     <div className="financeiro-filters">
       <div className="financeiro-date"><span>Filtro de data</span><div className="button-row">
         {filter.mode === 'month' && <input aria-label="Mês e ano" type="month" required value={filter.month} onChange={e => setFilter({ ...filter, month: e.target.value })} />}

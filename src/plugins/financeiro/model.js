@@ -43,6 +43,13 @@ export function totals(entries) {
   const entrada = sumMoney(entries.filter(e => e.entryType === 'entrada').map(e => e.value));
   const gasto = sumMoney(entries.filter(e => e.entryType === 'gasto').map(e => e.value));
   const negativeGasto = gasto.startsWith('-') ? gasto.slice(1) : '-' + gasto;
-  return { entrada, gasto, saldo: sumMoney([entrada, negativeGasto]), projetado: sumMoney(entries.filter(e => e.entryType === 'projetado').map(e => e.value)) };
+  const saldo = sumMoney([entrada, negativeGasto]);
+  const valoresProjetados = entries.filter(e => e.entryType === 'projetado').map(e => e.value);
+  const projetado = sumMoney(valoresProjetados);
+  const comProjecao = valoresProjetados.length ? {
+    entrada: sumMoney([entrada, projetado]),
+    saldo: sumMoney([saldo, projetado]),
+  } : null;
+  return { entrada, gasto, saldo, projetado, comProjecao };
 }
 export const normalizeCategoryName = name => name.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLocaleLowerCase('pt-BR');

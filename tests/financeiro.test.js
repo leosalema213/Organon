@@ -18,8 +18,17 @@ test('dinheiro decimal exato, inclusive grandes valores e escala legada', () => 
   assert.equal(decimal('-00,00'), '0');
   for (const invalid of [0.1, '', '1.234,56', '1e3', 'NaN', 'Infinity']) assert.throws(() => decimal(invalid));
 });
-test('saldo exclui projetados, mantém entradas MEI e não-MEI', () => {
-  assert.deepEqual(totals([entry, { ...entry, countForMei: false, value: '0.2' }, { ...entry, entryType: 'gasto', value: '0.15' }, { ...entry, entryType: 'projetado', value: '99.999' }]), { entrada: '0.3', gasto: '0.15', saldo: '0.15', projetado: '99.999' });
+test('entradas e saldo separam os valores confirmados dos projetados', () => {
+  const confirmados = [entry, { ...entry, countForMei: false, value: '0.2' }, { ...entry, entryType: 'gasto', value: '0.15' }];
+  assert.equal(totals(confirmados).comProjecao, null);
+  assert.deepEqual(totals([
+    ...confirmados,
+    { ...entry, entryType: 'projetado', value: '99.999' },
+    { ...entry, entryType: 'projetado', value: '0.002' },
+  ]), {
+    entrada: '0.3', gasto: '0.15', saldo: '0.15', projetado: '100.001',
+    comProjecao: { entrada: '100.301', saldo: '100.151' },
+  });
 });
 test('filtros combinados, datas históricas e duplicação em fevereiro', () => {
   const entries = [entry, { ...entry, id: typeId, entryType: 'gasto', entryDate: '2024-02-01' }];

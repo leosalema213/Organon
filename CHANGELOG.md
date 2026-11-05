@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 0.6.7
+
+- Mostrar entradas e saldo com receitas projetadas em linhas separadas dos valores confirmados no Financeiro.
+
 ## 0.6.6
 
 - Filtrar cartas por data de criação e exibir as mais recentes primeiro no Explorar.

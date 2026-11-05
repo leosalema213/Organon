@@ -5,3 +5,6 @@ body.dark .financeiro-total,body.dark .financeiro-table,[data-theme=dark] .finan
 @media(max-width:650px){.financeiro-page{padding:16px}.financeiro-summary{grid-template-columns:1fr}.financeiro-total strong{font-size:21px}.financeiro-category{flex-wrap:wrap}.financeiro-pair{grid-template-columns:1fr}}
 .financeiro-header.page-heading{margin-bottom:0}
 .financeiro-page{padding:0;gap:var(--section-gap)}
+.financeiro-total{align-content:start}
+.financeiro-saldo .financeiro-positive{color:var(--green)}
+.financeiro-projection{overflow-wrap:anywhere}
