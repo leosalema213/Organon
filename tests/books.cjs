@@ -6,8 +6,8 @@ const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
 let app, page;
 const errors = [];
 async function launch(profile) {
-  const options = process.env.COMPASSO_EXECUTABLE
-    ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env }
+  const options = (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)
+    ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env }
     : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
   app = await electron.launch(options); page = await app.firstWindow(); page.on('pageerror', error => errors.push(error.message));
   await page.getByRole('heading', { name: 'Meu dia', exact: true }).waitFor();

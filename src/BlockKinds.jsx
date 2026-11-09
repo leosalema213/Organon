@@ -30,7 +30,7 @@ export default function BlockKinds({ kinds, onCreate, onAdd, Modal }) {
       <div className="block-kind-grid" ref={grid} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {all.slice(0, capacity).map(kind => {
           const Icon = coverIcons[kind.icon] || BookOpen;
-          return <button className="secondary block-kind-chip" key={kind.id} type="button" draggable aria-label={`Adicionar ${kind.name.toLocaleLowerCase('pt-BR')}`} title={`Adicionar ${kind.name}`} onDragStart={event => event.dataTransfer.setData('application/compasso-block', kind.id)} onClick={() => onAdd(kind)}><Icon size={15} /><span>{kind.name}</span></button>;
+          return <button className="secondary block-kind-chip" key={kind.id} type="button" draggable aria-label={`Adicionar ${kind.name.toLocaleLowerCase('pt-BR')}`} title={`Adicionar ${kind.name}`} onDragStart={event => event.dataTransfer.setData('application/x-organon-block', kind.id)} onClick={() => onAdd(kind)}><Icon size={15} /><span>{kind.name}</span></button>;
         })}
       </div>
       <div className="block-kind-controls">

@@ -4,27 +4,27 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'compasso-test-'));
+const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-test-'));
 const output = path.join(root, 'test-output');
 fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
 let app;
-const launchOptions = process.env.COMPASSO_EXECUTABLE
-  ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${userData}`, '--skip-account-prompt'], env }
+const launchOptions = (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)
+  ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${userData}`, '--skip-account-prompt'], env }
   : { args: [root, `--user-data-dir=${userData}`, '--skip-account-prompt'], env };
 (async () => {
   app = await electron.launch(launchOptions);
   const page = await app.firstWindow();
   await app.evaluate(({ ipcMain, app }) => {
-    globalThis.compassoUpdateTest = { downloads: 0, installs: 0 };
+    globalThis.organonUpdateTest = { downloads: 0, installs: 0 };
     for (const name of ['check','download','install']) ipcMain.removeHandler('updates:' + name);
     ipcMain.handle('updates:check', () => ({ status: 'current', currentVersion: app.getVersion() }));
     ipcMain.handle('updates:download', event => {
-      globalThis.compassoUpdateTest.downloads++;
+      globalThis.organonUpdateTest.downloads++;
       const value = { status: 'ready', currentVersion: app.getVersion(), version: '99.0.0', percent: 100 };
       event.sender.send('updates:status', value); return value;
     });
-    ipcMain.handle('updates:install', () => { globalThis.compassoUpdateTest.installs++; return { status: 'installing', currentVersion: app.getVersion(), version: '99.0.0' }; });
+    ipcMain.handle('updates:install', () => { globalThis.organonUpdateTest.installs++; return { status: 'installing', currentVersion: app.getVersion(), version: '99.0.0' }; });
   });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -292,15 +292,15 @@ const launchOptions = process.env.COMPASSO_EXECUTABLE
   // Availability prompts without downloading; download/install each need a user click.
   await app.evaluate(({ BrowserWindow, app }) => BrowserWindow.getAllWindows()[0].webContents.send('updates:status', { status: 'available', currentVersion: app.getVersion(), version: '99.0.0' }));
   await page.getByRole('dialog', { name: 'Nova versão disponível' }).waitFor();
-  assert.equal(await app.evaluate(() => globalThis.compassoUpdateTest.downloads), 0);
+  assert.equal(await app.evaluate(() => globalThis.organonUpdateTest.downloads), 0);
   await page.getByRole('button', { name: 'Depois', exact: true }).click();
   await app.evaluate(({ BrowserWindow, app }) => BrowserWindow.getAllWindows()[0].webContents.send('updates:status', { status: 'available', currentVersion: app.getVersion(), version: '99.0.1' }));
   await page.getByRole('button', { name: 'Baixar atualização', exact: true }).click();
   await page.getByRole('dialog', { name: 'Pronto para atualizar' }).waitFor();
-  assert.equal(await app.evaluate(() => globalThis.compassoUpdateTest.installs), 0);
+  assert.equal(await app.evaluate(() => globalThis.organonUpdateTest.installs), 0);
   await page.getByRole('button', { name: 'Atualizar e reiniciar', exact: true }).click();
   await page.waitForFunction(() => !!document.querySelector('.update-body progress'));
-  assert.equal(await app.evaluate(() => globalThis.compassoUpdateTest.installs), 1);
+  assert.equal(await app.evaluate(() => globalThis.organonUpdateTest.installs), 1);
   await page.getByRole('dialog', { name: 'Atualizando o Organon', exact: true }).getByRole('button', { name: 'Fechar', exact: true }).click();
   await page.getByRole('button', { name: 'Preferências', exact: true }).click();
   await page.getByRole('button', { name: /^Mínimo/ }).click();

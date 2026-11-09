@@ -8,7 +8,7 @@ const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
     if (!fs.existsSync(path.join(path.dirname(path.resolve(file)), 'resources/app.asar'))) {
       throw new Error('Meça o executável direto na pasta win-unpacked, sem o extrator portátil.');
     }
-    const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'compasso-start-'));
+    const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-start-'));
     const start = performance.now();
     let app;
     try {

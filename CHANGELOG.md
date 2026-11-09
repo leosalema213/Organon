@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.7.1
+
+- Alinhar os controles da agenda, usar ícones nas setas e compactar o modal das notas com dia e horário lado a lado.
+- Adotar Organon no pacote e nas referências atuais, preservando os dados e identificadores das instalações anteriores.
+- Preparar a versão de transição para o repositório Organon, com publicação dos mesmos instaladores nos canais principal e legado.
+- Atualizar o nome da inicialização no Windows para Organon, preservando a opção de desativação existente.
+
 ## 0.7.0
 
 - Preparar a primeira tarefa pendente de hoje ao reabrir com uma seleção de dia anterior, preservando o histórico e o progresso parcial.

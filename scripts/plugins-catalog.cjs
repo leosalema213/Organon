@@ -3,6 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { verifyCatalog, validatePackage, hash } = require('../electron/plugins.cjs');
+const { LEGACY_REPOSITORY } = require('../electron/branding.cjs');
 const root = path.resolve(__dirname, '..');
 
 async function createCatalog({ tag, sequence, expiresAt, privateKeyFile }) {
@@ -21,7 +22,8 @@ async function createCatalog({ tag, sequence, expiresAt, privateKeyFile }) {
     const bytes = await fs.readFile(path.join(output, expectedName));
     const pkg = JSON.parse(bytes.toString('utf8'));
     validatePackage(bytes, descriptor, pkg.manifest.minHost);
-    plugins.push({ id: descriptor.id, version: descriptor.version, size: bytes.length, sha256: hash(bytes), tag, url: `https://github.com/leosalema213/app-estudos/releases/download/${tag}/${expectedName}` });
+    // The signed envelope is also consumed by installed legacy clients. Mirror packages in this repository.
+    plugins.push({ id: descriptor.id, version: descriptor.version, size: bytes.length, sha256: hash(bytes), tag, url: `https://github.com/${LEGACY_REPOSITORY}/releases/download/${tag}/${expectedName}` });
   }
   const payload = JSON.stringify({ format: 1, sequence, expiresAt, plugins });
   const envelope = { payload, signature: crypto.sign(null, Buffer.from(payload), key).toString('base64') };

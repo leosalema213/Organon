@@ -14,7 +14,15 @@ class WindowsStartup {
     if (this.available) {
       try {
         const current = this.app.getLoginItemSettings({ path: this.path, args: ['--autostart'] });
-        if (!(preserveSystemChoice && value && current.openAtLogin)) this.app.setLoginItemSettings({ openAtLogin: value, enabled: value, name: 'Compasso', path: this.path, args: ['--autostart'] });
+        const ownItem = item => item.scope === 'user' && item.path?.toLowerCase() === this.path.toLowerCase() && JSON.stringify(item.args) === JSON.stringify(['--autostart']);
+        const legacy = current.launchItems?.find(item => item.name === 'Compasso' && ownItem(item));
+        if (legacy) {
+          const modern = current.launchItems.find(item => item.name === 'Organon' && ownItem(item));
+          const enabled = preserveSystemChoice && value ? (modern || legacy).enabled !== false : value;
+          this.app.setLoginItemSettings({ openAtLogin: value, enabled, name: 'Organon', path: this.path, args: ['--autostart'] });
+          if (value && !this.app.getLoginItemSettings({ path: this.path, args: ['--autostart'] }).launchItems?.some(item => item.name === 'Organon' && ownItem(item) && item.enabled === enabled)) throw new Error('Registro Organon não confirmado.');
+          this.app.setLoginItemSettings({ openAtLogin: false, name: 'Compasso', path: this.path, args: ['--autostart'] });
+        } else if (!(preserveSystemChoice && value && current.openAtLogin)) this.app.setLoginItemSettings({ openAtLogin: value, enabled: value, name: 'Organon', path: this.path, args: ['--autostart'] });
       } catch { this.error = 'Não foi possível alterar a inicialização do Windows. Tente novamente.'; }
     }
     return this.status();

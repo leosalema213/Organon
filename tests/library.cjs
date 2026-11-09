@@ -4,11 +4,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'compasso-library-'));
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-library-'));
 const output = path.join(root, 'test-output'); fs.mkdirSync(output, { recursive: true });
 const file = path.join(profile, 'compasso.json');
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-const options = process.env.COMPASSO_EXECUTABLE ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env } : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
+const options = (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE) ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env } : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
 let app;
 (async () => {
   const { seed, validateData } = await import('../src/model.js');

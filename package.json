@@ -1,14 +1,14 @@
 {
-  "name": "compasso-estudos",
-  "version": "0.7.0",
+  "name": "organon",
+  "version": "0.7.1",
   "private": true,
   "description": "Seu ritmo de estudo, um bloco de cada vez.",
   "author": "Organon",
   "repository": {
     "type": "git",
-    "url": "https://github.com/leosalema213/app-estudos.git"
+    "url": "https://github.com/leosalema213/Organon.git"
   },
-  "homepage": "https://github.com/leosalema213/app-estudos",
+  "homepage": "https://github.com/leosalema213/Organon",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

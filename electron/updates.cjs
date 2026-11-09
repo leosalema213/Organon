@@ -3,8 +3,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
-const REPOSITORY = 'leosalema213/app-estudos';
-const { INSTALLER_NAMES } = require('./branding.cjs');
+const { INSTALLER_NAMES, REPOSITORY, LEGACY_REPOSITORY } = require('./branding.cjs');
 const { parseVersion: parseInstalledVersion } = require('./versions.cjs');
 const INSTALLER = INSTALLER_NAMES[0];
 const API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
@@ -16,9 +15,9 @@ function isNewer(remote, current) {
   return installed.preview !== null;
 }
 function assetUrl(asset, tag) {
-  const expected = `https://github.com/${REPOSITORY}/releases/download/${encodeURIComponent(tag)}/${asset.name}`;
-  if (asset.browser_download_url !== expected) throw new Error('Endereço de atualização inválido.');
-  return expected;
+  const allowed = [REPOSITORY, LEGACY_REPOSITORY].map(repo => `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${asset.name}`);
+  if (!allowed.includes(asset.browser_download_url)) throw new Error('Endereço de atualização inválido.');
+  return asset.browser_download_url;
 }
 async function hashFile(file) {
   const hash = crypto.createHash('sha256');
@@ -60,7 +59,9 @@ class AppUpdates {
   async checkRelease() {
     this.set({ status: 'checking' });
     try {
-      const response = await this.fetch(API, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Organon' }, signal: AbortSignal.timeout(15000) });
+      const options = () => ({ headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Organon' }, signal: AbortSignal.timeout(15000) });
+      let response = await this.fetch(API, options());
+      if (response.status === 404) response = await this.fetch(`https://api.github.com/repos/${LEGACY_REPOSITORY}/releases/latest`, options());
       if (response.status === 404) return this.set({ status: 'current', message: 'Nenhuma atualização publicada ainda.' });
       if (!response.ok) throw new Error('Não foi possível consultar as versões. Verifique sua conexão e tente novamente.');
       const release = await response.json();

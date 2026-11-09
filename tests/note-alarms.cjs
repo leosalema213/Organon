@@ -17,8 +17,20 @@ let app;
   await page.getByRole('heading', { name: 'Meu dia', exact: true }).waitFor();
   await page.clock.install({ time: new Date('2026-11-09T13:00:00') });
   await page.getByRole('button', { name: 'Notas', exact: true }).click();
+  const controls = page.locator('.reminder-view-controls');
+  for (const name of ['Período anterior', 'Próximo período']) {
+    const arrow = controls.getByRole('button', { name, exact: true });
+    assert.equal(await arrow.locator('svg').count(), 1);
+    assert.equal((await arrow.innerText()).trim(), '');
+  }
+  const heights = await controls.locator('input, button').evaluateAll(items => items.map(item => item.getBoundingClientRect().height));
+  assert(Math.max(...heights) - Math.min(...heights) < 1, `Alturas desalinhadas: ${heights}`);
+  assert.equal(await controls.locator('label').count(), 0);
   await page.getByRole('button', { name: 'Nova nota', exact: true }).click();
   let modal = page.getByRole('dialog', { name: 'Nova nota', exact: true });
+  const columns = await modal.locator('.reminder-datetime label').evaluateAll(items => items.map(item => { const rect = item.getBoundingClientRect(); return { top: rect.top, width: rect.width }; }));
+  assert.equal(columns.length, 2); assert(Math.abs(columns[0].top - columns[1].top) < 1); assert(Math.abs(columns[0].width - columns[1].width) < 1);
+  assert.equal(await modal.getByText(/A última escolha de som/).count(), 0);
   await modal.getByLabel('Título da nota', { exact: true }).fill('Verificar o arroz');
   await modal.getByRole('button', { name: 'Daqui a 10 minutos', exact: true }).click();
   assert.equal(await modal.getByLabel('Horário da nota', { exact: true }).inputValue(), '13:10');

@@ -4,9 +4,9 @@ Seu espaço de estudo no Windows: planos, cronômetro, livros, anotações e rev
 
 A versão **0.5.4** permite cadastrar várias cartas em sequência: a modal permanece aberta, limpa os campos e mantém o baralho e o tipo selecionados. Inclui também roteiros de estudo por dia e editor compartilhado com formatação e cores. A conexão com Supabase permanece desativada enquanto o servidor não é validado; o aplicativo segue offline, sem solicitar login. Consulte o [estado da configuração](docs/SUPABASE.md).
 
-**[Baixar instalador para Windows · versão mais recente](https://github.com/leosalema213/app-estudos/releases/latest/download/Organon-Instalar.exe)**
+**[Baixar instalador para Windows · versão mais recente](https://github.com/leosalema213/Organon/releases/latest/download/Organon-Instalar.exe)**
 
-[Versões e novidades](https://github.com/leosalema213/app-estudos/releases) · [Código-fonte](https://github.com/leosalema213/app-estudos)
+[Versões e novidades](https://github.com/leosalema213/Organon/releases) · [Código-fonte](https://github.com/leosalema213/Organon)
 
 O link de download permanece o mesmo em todas as versões publicadas. A versão em trabalho está no `package.json`; o instalador da última Release é a versão distribuída.
 
@@ -25,7 +25,7 @@ O link de download permanece o mesmo em todas as versões publicadas. A versão 
 
 As imagens de apresentação usam um perfil fictício, criado para ilustrar um roteiro de inglês, redes e Linux. Nenhum dado pessoal foi usado nas capturas.
 
-O Organon era chamado Compasso. Os dados locais, identificadores internos e um instalador com o nome anterior são mantidos para compatibilidade com atualizações existentes.
+Organon é o nome do produto e do pacote. Os identificadores de instalação e os dados das versões anteriores são preservados por compatibilidade. [Identidade e migração dos repositórios](docs/IDENTIDADE-E-REPOSITORIOS.md).
 
 ## Instalação
 
@@ -200,7 +200,7 @@ A [auditoria de backup e o roteiro de reinstalação segura](docs/AUDITORIA-BACK
 
 ## Persistência e comportamento do relógio
 
-No Windows, os dados ficam em `%APPDATA%/compasso-estudos/compasso.json` (o Electron usa a pasta de dados do aplicativo). O arquivo é salvo automaticamente por substituição de um arquivo temporário. Durante uma sessão, o cronômetro atualiza a tela a cada segundo e grava um checkpoint a cada cinco segundos; pausar, editar planos ou trocar preferências salva imediatamente. Isso evita regravar cadernos e imagens a cada atualização visual. O fechamento normal também solicita uma gravação final. Sem sincronização e sem serviços externos.
+No Windows, os dados ficam em `%APPDATA%/compasso-estudos/compasso.json` (o Electron usa a pasta de dados do aplicativo). O arquivo é salvo automaticamente por substituição de um arquivo temporário. Durante uma sessão, o cronômetro atualiza a tela a cada segundo e grava um checkpoint a cada cinco segundos; pausar, editar planos ou trocar preferências salva imediatamente. Isso evita regravar cadernos e imagens a cada atualização visual. O fechamento normal também solicita uma gravação final. A sincronização com uma conta é opcional.
 
 Ao fechar e reabrir, o cronômetro fica pausado no último estado salvo; o tempo com o app fechado não conta. Minimizar ou usar o modo compacto mantém o timer ativo. O cálculo usa o relógio, evitando atraso acumulado dos intervalos. No Electron, o evento de suspensão do Windows pausa a sessão; ao voltar, retome manualmente. O tempo que atravessa meia-noite é distribuído entre as duas datas, e o check pertence ao dia em que o bloco começou.
 
@@ -250,13 +250,13 @@ As imagens do README podem ser renovadas com `npm run docs:screenshots` depois d
 
 O build grava `dist/build-manifest.json`. Antes de gerar o instalador, o hook `scripts/verify-package.cjs` confere todos os arquivos empacotados contra seus tamanhos e SHA-256 e verifica se correspondem ao build de origem. Se outro comando recompilar a pasta durante o empacotamento, a verificação deve falhar e o pacote precisa ser refeito. Para investigar a inicialização do instalador gerado, `node tests/packaged-startup.cjs` abre seu executável real em perfil temporário e aguarda a tela Meu dia, sem usar dados pessoais.
 
-O script usa a autenticação existente do Git, ou `GH_TOKEN`/`GITHUB_TOKEN` no ambiente. Credenciais não são gravadas em arquivos. Ele cria uma Release em rascunho, envia `Organon-Instalar.exe`, uma cópia idêntica `Compasso-Instalar.exe` para clientes anteriores e os respectivos checksums e só então publica como a versão mais recente. O README continua apontando para o mesmo endereço de download. Executáveis, dependências, dados de teste, atalhos e arquivos `.env` ficam fora do Git.
+O script usa a autenticação existente do Git, ou `GH_TOKEN`/`GITHUB_TOKEN` no ambiente. Credenciais não são gravadas em arquivos. Ele cria uma Release em rascunho, envia `Organon-Instalar.exe`, uma cópia idêntica `Compasso-Instalar.exe` para clientes anteriores e os respectivos checksums e só então publica como a versão mais recente. A publicação mantém os mesmos instaladores e checksums nos canais principal e legado, permitindo que versões antigas recebam a atualização de transição. O canal principal é `leosalema213/Organon`; o anterior permanece como ponte de atualização. Executáveis, dependências, dados de teste, atalhos e arquivos `.env` ficam fora do Git.
 
 `npm run release` recusa previews e versões novas com PATCH maior que 9. Previews são instaladores locais identificados, sem publicação no canal de produção. A final é superior ao preview da mesma base (`0.5.1` > `0.5.1-preview.2`); o atualizador também continua entendendo versões legadas como 0.4.10. Não é feito downgrade de um preview de uma base futura para uma final anterior.
 
 ## Atualizações no aplicativo
 
-Ao abrir, o Organon consulta a última Release pública de `leosalema213/app-estudos` sem bloquear a interface. Uma versão mais nova abre o aviso com as opções **Depois** e **Baixar atualização**. O download só começa após essa escolha e mostra uma barra de progresso. Quando termina, **Atualizar e reiniciar** pausa o cronômetro, salva os dados e aplica a atualização em segundo plano. O app fecha brevemente e reabre ao concluir. O instalador reconhece também os parâmetros enviados pelas versões 0.3 e 0.4, tornando esta atualização silenciosa para elas.
+Ao abrir, o Organon consulta a última Release pública de `leosalema213/Organon` (com ponte temporária pelo canal legado) sem bloquear a interface. Uma versão mais nova abre o aviso com as opções **Depois** e **Baixar atualização**. O download só começa após essa escolha e mostra uma barra de progresso. Quando termina, **Atualizar e reiniciar** pausa o cronômetro, salva os dados e aplica a atualização em segundo plano. O app fecha brevemente e reabre ao concluir. O instalador reconhece também os parâmetros enviados pelas versões 0.3 e 0.4, tornando esta atualização silenciosa para elas.
 
 O pacote completo ainda é baixado a cada versão; não há download diferencial. O modo silencioso remove as etapas repetidas do assistente, mas não elimina o tempo necessário para baixar e substituir os arquivos. A versão instalada aparece abaixo da logo e nas preferências.
 

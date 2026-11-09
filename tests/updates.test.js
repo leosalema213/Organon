@@ -15,7 +15,7 @@ function release(version = '0.4.0') {
 }
 function fixture({ metadata = release(), body = payload, fetchError = false } = {}) {
   const calls = []; const events = []; let installs = 0; let quits = 0;
-  const updater = new AppUpdates({ version: '0.3.0', cacheDir: fs.mkdtempSync(path.join(os.tmpdir(), 'compasso-updater-')),
+  const updater = new AppUpdates({ version: '0.3.0', cacheDir: fs.mkdtempSync(path.join(os.tmpdir(), 'organon-updater-')),
     fetchImpl: async url => { calls.push(url); if (fetchError) throw new Error('Sem conexão'); return url.endsWith('/latest') ? Response.json(metadata) : new Response(body); },
     emit: state => events.push(state), launchInstaller: async () => { installs++; }, onQuit: () => { quits++; },
   });

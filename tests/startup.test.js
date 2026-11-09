@@ -11,13 +11,13 @@ const today = '2026-10-27';
 function startupFixture(available = true) {
   const calls = []; let current = { openAtLogin: false, executableWillLaunchAtLogin: false };
   const app = { getLoginItemSettings: () => current, setLoginItemSettings: options => { calls.push(options); current = { openAtLogin: options.openAtLogin, executableWillLaunchAtLogin: options.enabled }; } };
-  return { manager: new WindowsStartup({ app, available, path: 'C:\\Program Files\\Compasso\\Compasso.exe' }), calls, app, setCurrent: value => { current = value; } };
+  return { manager: new WindowsStartup({ app, available, path: 'C:\\Program Files\\Organon\\Organon.exe' }), calls, app, setCurrent: value => { current = value; } };
 }
 test('startup defaults to enabled, preserves a disabled preference and uses the current executable', () => {
   assert.equal(preferences().startWithWindows, true);
   const { manager, calls } = startupFixture();
   manager.sync({}); assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], { openAtLogin: true, enabled: true, name: 'Compasso', path: 'C:\\Program Files\\Compasso\\Compasso.exe', args: ['--autostart'] });
+  assert.deepEqual(calls[0], { openAtLogin: true, enabled: true, name: 'Organon', path: 'C:\\Program Files\\Organon\\Organon.exe', args: ['--autostart'] });
   manager.sync({}); assert.equal(calls.length, 1);
   manager.set(false); assert.equal(calls.at(-1).openAtLogin, false); assert.equal(manager.status().enabled, false);
   assert.equal(preferences({ startWithWindows: false }).startWithWindows, false);
@@ -37,6 +37,36 @@ test('automatic sync respects the Windows disabled flag while an explicit choice
 test('startup OS errors are reported without throwing or losing study data', () => {
   const { manager, app } = startupFixture(); app.setLoginItemSettings = () => { throw Error('Denied'); };
   assert(manager.set(true).error); assert.equal(manager.status().enabled, false);
+});
+
+test('startup renames its own legacy entry while preserving the Windows disabled choice', () => {
+  for (const enabled of [false, true]) {
+    const path = 'C:\\Program Files\\Organon\\Organon.exe';
+    const items = [{ name: 'Compasso', path, args: ['--autostart'], scope: 'user', enabled }];
+    const app = {
+      getLoginItemSettings: () => ({ openAtLogin: items.length > 0, executableWillLaunchAtLogin: items.some(item => item.enabled), launchItems: structuredClone(items) }),
+      setLoginItemSettings: options => {
+        const index = items.findIndex(item => item.name === options.name);
+        if (index >= 0) items.splice(index, 1);
+        if (options.openAtLogin) items.push({ ...options, scope: 'user' });
+      },
+    };
+    const manager = new WindowsStartup({ app, path, available: true });
+    manager.sync({});
+    assert.deepEqual(items.map(item => [item.name, item.enabled]), [['Organon', enabled]]);
+    assert.equal(manager.status().enabled, enabled);
+  }
+});
+test('failed startup rename preserves the legacy registration for the next launch', () => {
+  const path = 'C:\\Program Files\\Organon\\Organon.exe', calls = [];
+  const app = {
+    getLoginItemSettings: () => ({ openAtLogin: true, executableWillLaunchAtLogin: false, launchItems: [{ name: 'Compasso', path, args: ['--autostart'], scope: 'user', enabled: false }] }),
+    setLoginItemSettings: options => calls.push(options),
+  };
+  const manager = new WindowsStartup({ app, path, available: true });
+  assert(manager.sync({}).error);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, 'Organon');
 });
 test('only opted-in, due, unseen notes are eligible, including daily notes', () => {
   const note = { ...newReminder(today), title: 'Nota' }; assert.equal(note.notifyOnStartup, false);

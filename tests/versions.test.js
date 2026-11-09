@@ -28,8 +28,8 @@ test('each preview has a unique counter and the final shares its target numeric 
 
 test('version preparation preserves unrelated metadata, dependency versions and changelog history', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-version-'));
-  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'compasso-estudos', version: '0.5.0', custom: { retained: true } }, null, 2) + '\n');
-  fs.writeFileSync(path.join(root, 'package-lock.json'), JSON.stringify({ version: '0.5.0', packages: { '': { name: 'compasso-estudos', version: '0.5.0' }, 'node_modules/example': { version: '0.5.0' } } }, null, 2) + '\n');
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'organon', version: '0.5.0', custom: { retained: true } }, null, 2) + '\n');
+  fs.writeFileSync(path.join(root, 'package-lock.json'), JSON.stringify({ version: '0.5.0', packages: { '': { name: 'organon', version: '0.5.0' }, 'node_modules/example': { version: '0.5.0' } } }, null, 2) + '\n');
   const history = '# Histórico\n\n## 0.5.0\n\n- Dados anteriores.\n';
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), history);
   writeVersion(root, '0.5.1-preview.1');

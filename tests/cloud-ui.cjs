@@ -4,8 +4,8 @@ const fs = require('node:fs'), os = require('node:os'), path = require('node:pat
 const root = path.resolve(__dirname, '..'), profile = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-account-'));
 const output = path.join(root, 'test-output'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-const options = process.env.COMPASSO_EXECUTABLE
-  ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${profile}`, '--enable-cloud-test'], env }
+const options = (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)
+  ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${profile}`, '--enable-cloud-test'], env }
   : { args: [root, `--user-data-dir=${profile}`, '--enable-cloud-test'], env };
 let app;
 (async () => {

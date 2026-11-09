@@ -1,8 +1,8 @@
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path');
-const root = path.resolve(__dirname, '..'), profile = fs.mkdtempSync(path.join(os.tmpdir(), 'compasso-plans-')), file = path.join(profile, 'compasso.json'), output = path.join(root, 'test-output'); fs.mkdirSync(output, { recursive: true });
+const root = path.resolve(__dirname, '..'), profile = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-plans-')), file = path.join(profile, 'compasso.json'), output = path.join(root, 'test-output'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-const options = process.env.COMPASSO_EXECUTABLE ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env } : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
+const options = (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE) ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env } : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
 let app;
 (async () => {
   const { dayKey, firstPlan, seed, validateData } = await import('../src/model.js');

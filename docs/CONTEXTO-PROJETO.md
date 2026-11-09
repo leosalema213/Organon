@@ -5,11 +5,11 @@ Resumo de passagem de contexto em 28/10/2026. Confirme o estado atual do Git ant
 ## Projeto e estado confirmado
 
 - Pasta: `C:\Users\leo_s\OneDrive\Documentos\ChatGPT\Pessoal\estudo-desktop` (dentro do projeto Codex Pessoal).
-- Repositório: https://github.com/leosalema213/app-estudos.git, branch `main`.
+- Repositório: https://github.com/leosalema213/Organon.git, branch `main`.
 - Última publicação confirmada: **0.4.8**, commit `61b34ad737f917fef309bc4b92f806dbc5319d86`.
-- Instalador atual: https://github.com/leosalema213/app-estudos/releases/latest/download/Organon-Instalar.exe.
+- Instalador atual: https://github.com/leosalema213/Organon/releases/latest/download/Organon-Instalar.exe.
 - App Windows local em JavaScript, React, Vite e Electron; editor Tiptap; ícones Lucide. Funciona sem conta ou servidor.
-- Nome anterior: Compasso. Logo atual: organon com o primeiro o como ômega invertido; ícone próprio.
+- Marca: Organon. Logo atual: organon com o primeiro o como ômega invertido; ícone próprio.
 - Documentação principal: `README.md`, `CHANGELOG.md`, `PENDENCIAS.md` e regras em `AGENTS.md`.
 
 ## Regras importantes
@@ -24,7 +24,7 @@ Resumo de passagem de contexto em 28/10/2026. Confirme o estado atual do Git ant
 ## Dados e compatibilidade
 
 - Perfil principal: `%APPDATA%\compasso-estudos\compasso.json`; existe compatibilidade com o perfil antigo `Compasso`. A renomeação não deve criar um perfil vazio.
-- Identificadores deliberadamente legados: pacote `compasso-estudos`, appId instalado `br.com.compasso.estudos`, arquivo `compasso.json`, chave web `compasso-v1` e registro de inicialização `Compasso`.
+- Pacote atual: `organon`. Identificadores deliberadamente legados: appId instalado `br.com.compasso.estudos`, arquivo `compasso.json`, chave web `compasso-v1` e detecção do registro de inicialização antigo. O registro atual passa a usar `Organon`, preservando a preferência de desativação do Windows.
 - Modelo de dados versão 1, ampliado com campos opcionais e migrações para backups antigos. Não confundir versão do modelo com a versão do aplicativo.
 - Persistência JSON por arquivo temporário e substituição; gravações do timer são limitadas a checkpoints, outras edições devem salvar prontamente.
 - A aplicação em navegador usa armazenamento separado do desktop.
@@ -49,7 +49,7 @@ Resumo de passagem de contexto em 28/10/2026. Confirme o estado atual do Git ant
 - `electron/branding.cjs`, `electron/updates.cjs`, `electron/startup.cjs`, `electron/reminder-notifications.cjs`: identidade, atualizador e integrações Windows.
 - `npm test` passou em 74 testes no lote 0.4.8; isso não é prova de cobertura completa do backup das novas funcionalidades.
 - `npm run build`; testes Electron `test:ui`, `test:notebook`, `test:library`, `test:reminders`, `test:plans`, `test:windows-startup`.
-- Scripts adicionais: `node tests/extra-time.cjs`, `node tests/update-cleanup.cjs`. Testes desktop aceitam `COMPASSO_EXECUTABLE` em vários scripts; conferir cada um.
+- Scripts adicionais: `node tests/extra-time.cjs`, `node tests/update-cleanup.cjs`. Testes desktop aceitam `ORGANON_EXECUTABLE` (com alias legado aceito) em vários scripts; conferir cada um.
 - `tests/model.test.js`, testes de cadernos e lembretes já têm verificações de roundtrip; auditar também os caminhos reais de exportar/importar pela UI e os campos recentes.
 
 ## Atualizações e Windows na 0.4.8

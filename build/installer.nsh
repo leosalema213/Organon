@@ -4,6 +4,8 @@
   ${IfNot} ${isUpdated}
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Compasso"
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "Compasso"
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Organon"
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "Organon"
   ${EndIf}
 !macroend
 
@@ -18,13 +20,13 @@
 
 !macro customWelcomePage
   !define MUI_WELCOMEPAGE_TITLE "Bem-vindo ao Organon"
-  !define MUI_WELCOMEPAGE_TEXT "Aplicativo de estudos para Windows com planos por dia da semana, cronômetro de aulas e descansos, caderno com imagens e histórico de estudo.$\r$\n$\r$\nFunciona localmente, sem conta e sem servidor.$\r$\n$\r$\nNas próximas etapas, escolha onde instalar e confirme a instalação.$\r$\n$\r$\nClique em Próximo para continuar."
+  !define MUI_WELCOMEPAGE_TEXT "Organon para Windows com planos por dia da semana, cronômetro de aulas e descansos, caderno com imagens e histórico de estudo.$\r$\n$\r$\nO Organon preserva seus dados locais ao atualizar.$\r$\n$\r$\nNas próximas etapas, escolha onde instalar e confirme a instalação.$\r$\n$\r$\nClique em Próximo para continuar."
   !insertmacro MUI_PAGE_WELCOME
 !macroend
 
 !macro customPageAfterChangeDir
-  Page custom CompassoConfirmPage
-  Function CompassoConfirmPage
+  Page custom OrganonConfirmPage
+  Function OrganonConfirmPage
     !insertmacro MUI_HEADER_TEXT "Confirmar instalação" "Confira a pasta antes de instalar."
     ; Match electron-builder's directory normalization before showing the final path.
     ${StrContains} $1 "${APP_FILENAME}" $INSTDIR
@@ -49,7 +51,7 @@
 !macroend
 
 !macro customFinishPage
-  Function CompassoStartApp
+  Function OrganonStartApp
     ${If} ${isUpdated}
       StrCpy $1 "--updated"
     ${Else}
@@ -62,6 +64,6 @@
   !define MUI_FINISHPAGE_RUN
   !define MUI_FINISHPAGE_RUN_NOTCHECKED
   !define MUI_FINISHPAGE_RUN_TEXT "Abrir o Organon agora"
-  !define MUI_FINISHPAGE_RUN_FUNCTION "CompassoStartApp"
+  !define MUI_FINISHPAGE_RUN_FUNCTION "OrganonStartApp"
   !insertmacro MUI_PAGE_FINISH
 !macroend

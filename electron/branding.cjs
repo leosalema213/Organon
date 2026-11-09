@@ -1,6 +1,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const BRAND = 'Organon';
+const REPOSITORY = 'leosalema213/Organon';
+// Distributed versions validate this exact repository URL; retain it as an update bridge.
+const LEGACY_REPOSITORY = 'leosalema213/app-estudos';
 const APP_ID = 'br.com.compasso.estudos';
 const DEVELOPMENT_APP_ID = APP_ID + '.development';
 const INSTALLER_NAMES = ['Organon-Instalar.exe', 'Compasso-Instalar.exe'];
@@ -18,4 +21,4 @@ function repairDevelopmentShortcut(shell, appData) {
     return shell.writeShortcutLink(shortcut, 'update', { appUserModelId: DEVELOPMENT_APP_ID });
   } catch { return false; }
 }
-module.exports = { BRAND, APP_ID, DEVELOPMENT_APP_ID, INSTALLER_NAMES, legacyUserData, repairDevelopmentShortcut };
+module.exports = { BRAND, REPOSITORY, LEGACY_REPOSITORY, APP_ID, DEVELOPMENT_APP_ID, INSTALLER_NAMES, legacyUserData, repairDevelopmentShortcut };

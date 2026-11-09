@@ -4,12 +4,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'compasso-document-'));
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-document-'));
 const file = path.join(profile, 'compasso.json');
 const output = path.join(root, 'test-output');
 fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-const options = process.env.COMPASSO_EXECUTABLE ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env } : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
+const options = (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE) ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env } : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
 let app;
 async function paste(page, { delay = false } = {}) {
   await page.evaluate(async delay => {

@@ -7,8 +7,8 @@ const root = path.resolve(__dirname, '..');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'organon-backup-'));
 const output = path.join(root, 'test-output'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-const options = profile => process.env.COMPASSO_EXECUTABLE
-  ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env }
+const options = profile => (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)
+  ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env }
   : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
 let app, page;
 const errors = [];
@@ -156,6 +156,6 @@ async function saved(profile, expected) {
   await page.getByRole('dialog', { name: 'Restaurar este backup?', exact: true }).getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByText('Backup carregado, mas não foi possível salvar no computador. Exporte uma cópia antes de fechar.', { exact: true }).waitFor();
   assert.deepEqual(errors, []);
-  fs.writeFileSync(path.join(output, 'backup-audit.json'), JSON.stringify({ date: new Date().toISOString(), executable: process.env.COMPASSO_EXECUTABLE || 'development Electron', directory, bytes: fs.statSync(largeFile).size, checks: ['export equality', 'clean-profile import equality', 'restart equality except startedAt', 'restored rich page rendering', 'over 40 MiB import and export equality', 'legacy import migration', 'cancel and invalid JSON preserve data', 'export current data despite local save failure', 'import save failure never reports success'], result: 'PASS' }, null, 2));
+  fs.writeFileSync(path.join(output, 'backup-audit.json'), JSON.stringify({ date: new Date().toISOString(), executable: (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE) || 'development Electron', directory, bytes: fs.statSync(largeFile).size, checks: ['export equality', 'clean-profile import equality', 'restart equality except startedAt', 'restored rich page rendering', 'over 40 MiB import and export equality', 'legacy import migration', 'cancel and invalid JSON preserve data', 'export current data despite local save failure', 'import save failure never reports success'], result: 'PASS' }, null, 2));
   console.log('PASS: complete UI/IPC backup roundtrip, clean profile, restart and >40 MiB. Evidence:', directory);
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => { if (app) await app.close(); });

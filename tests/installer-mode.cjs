@@ -29,7 +29,7 @@ const macro = fs.readFileSync(path.join(root, 'build/installer.nsh'), 'utf8').ma
 const flags = new NsisScriptGenerator(); flags.flags(['updated', 'force-run']);
 fs.writeFileSync(script, `Unicode true
 RequestExecutionLevel user
-Name "Compasso installer mode probe"
+Name "Organon installer mode probe"
 OutFile "${executable}"
 SilentInstall normal
 !include "LogicLib.nsh"

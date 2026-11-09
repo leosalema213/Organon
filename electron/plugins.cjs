@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const IDS = Object.freeze(['financeiro', 'mei']);
 const LABELS = Object.freeze({ financeiro: 'Financeiro', mei: 'MEI' });
 const ABI = 1;
-const REPOSITORY = 'leosalema213/app-estudos';
+const { REPOSITORY, LEGACY_REPOSITORY } = require('./branding.cjs');
 const CATALOG_URL = `https://github.com/${REPOSITORY}/releases/latest/download/organon-plugins-catalog.json`;
 const MAX_PACKAGE = 8 * 1024 * 1024;
 const MAX_CATALOG = 64 * 1024;
@@ -65,8 +65,8 @@ function verifyCatalog(envelope, publicKey, { fresh = true, now = Date.now() } =
     assertId(item.id); version(item.version);
     if (seen.has(item.id) || !isHash(item.sha256) || !Number.isSafeInteger(item.size) || item.size < 1 || item.size > MAX_PACKAGE) fail('Descritor de plugin inválido.');
     seen.add(item.id);
-    const expected = `https://github.com/${REPOSITORY}/releases/download/${encodeURIComponent(item.tag)}/organon-plugin-${item.id}-${item.version}.organon-plugin`;
-    if (typeof item.tag !== 'string' || !/^v\d+\.\d+\.\d+$/.test(item.tag) || item.url !== expected) fail('Endereço de pacote não autorizado.');
+    const expected = [REPOSITORY, LEGACY_REPOSITORY].map(repo => `https://github.com/${repo}/releases/download/${encodeURIComponent(item.tag)}/organon-plugin-${item.id}-${item.version}.organon-plugin`);
+    if (typeof item.tag !== 'string' || !/^v\d+\.\d+\.\d+$/.test(item.tag) || !expected.includes(item.url)) fail('Endereço de pacote não autorizado.');
   }
   return catalog;
 }
@@ -85,7 +85,7 @@ async function download(url, limit, fetchImpl = globalThis.fetch) {
       if (!location) fail('Redirecionamento inválido.');
       url = new URL(location, url).href; continue;
     }
-    if (!response.ok || !response.body) { await response.body?.cancel(); fail('Não foi possível baixar o plugin.'); }
+    if (!response.ok || !response.body) { await response.body?.cancel(); const error = new Error('Não foi possível baixar o plugin.'); error.status = response.status; throw error; }
     const declared = response.headers.get('content-length');
     if (declared && (!/^\d+$/.test(declared) || Number(declared) > limit)) { await response.body.cancel(); fail('Download acima do limite permitido.'); }
     const chunks = []; let size = 0;
@@ -98,6 +98,13 @@ async function download(url, limit, fetchImpl = globalThis.fetch) {
   fail('Redirecionamentos demais no download.');
 }
 
+async function downloadCatalog(fetchImpl = globalThis.fetch) {
+  try { return await download(CATALOG_URL, MAX_CATALOG, fetchImpl); }
+  catch (error) {
+    if (error.status !== 404) throw error;
+    return download(`https://github.com/${LEGACY_REPOSITORY}/releases/latest/download/organon-plugins-catalog.json`, MAX_CATALOG, fetchImpl);
+  }
+}
 function createPluginManager({ directory, hostVersion, publicKey, fetchImpl = globalThis.fetch, emit = () => {}, onSelectionChanged = () => {} }) {
   version(hostVersion, true);
   const root = path.resolve(directory), objects = path.join(root, 'objects'), registryFile = path.join(root, 'installed.json');
@@ -174,7 +181,7 @@ function createPluginManager({ directory, hostVersion, publicKey, fetchImpl = gl
   }
   async function check() {
     return exclusive(async () => {
-      const envelope = JSON.parse((await download(CATALOG_URL, MAX_CATALOG, fetchImpl)).toString('utf8'));
+      const envelope = JSON.parse((await downloadCatalog(fetchImpl)).toString('utf8'));
       const catalog = verifyCatalog(envelope, publicKey);
       if (catalog.sequence < registry.sequence) fail('Catálogo anterior ao já verificado.');
       await write({ ...registry, sequence: catalog.sequence }); catalogEnvelope = envelope;
@@ -261,4 +268,4 @@ function registerPluginIpc({ ipcMain, manager, isTrustedSender }) {
   });
   return () => { for (const name of Object.keys(actions)) ipcMain.removeHandler(`plugins:${name}`); };
 }
-module.exports = { createPluginManager, registerPluginIpc, scheme, validateManifest, validatePackage, verifyCatalog, compatible, download, hash, ABI, IDS, MAX_PACKAGE, MAX_CATALOG, CATALOG_URL };
+module.exports = { createPluginManager, registerPluginIpc, scheme, validateManifest, validatePackage, verifyCatalog, compatible, download, downloadCatalog, hash, ABI, IDS, MAX_PACKAGE, MAX_CATALOG, CATALOG_URL };

@@ -14,8 +14,8 @@ let app;
   const put = relative => { const file = path.join(profile, 'updates', relative); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'fixture'); return file; };
   const old = put('0.0.0/Compasso-Instalar.exe'), current = put(`${version}/Organon-Instalar.exe`);
   const future = put(`${futureVersion}/Organon-Instalar.exe`), unknown = put('0.4.7/keep.txt');
-  const options = process.env.COMPASSO_EXECUTABLE
-    ? { executablePath: path.resolve(process.env.COMPASSO_EXECUTABLE), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env }
+  const options = (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)
+    ? { executablePath: path.resolve((process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE)), args: [`--user-data-dir=${profile}`, '--skip-account-prompt'], env }
     : { args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env };
   app = await electron.launch(options);
   const page = await app.firstWindow();

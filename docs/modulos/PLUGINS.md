@@ -92,7 +92,7 @@ Somente `index.js` e `style.css` são aceitos como nomes de arquivo. Não existe
 extração de ZIP nem execução de scripts de instalação. Tamanho máximo total do
 JSON do pacote: 8 MiB; catálogo: 64 KiB; download: 45 s e até cinco redirects,
 somente HTTPS em GitHub e seus hosts de assets permitidos. A lista de assets
-originais é fixa em `leosalema213/app-estudos`, com tags estáveis `vX.Y.Z`.
+originais é limitada a `leosalema213/Organon` e ao canal legado de compatibilidade `leosalema213/app-estudos`, com tags estáveis `vX.Y.Z`. Os catálogos espelhados preservam URLs legadas assinadas para as versões já instaladas.
 
 Catálogo: `{payload:string,signature:string}`. A assinatura Ed25519 cobre os bytes
 UTF-8 exatos de `payload`; a assinatura usa base64. O payload contém

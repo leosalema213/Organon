@@ -46,7 +46,7 @@ Todo o estado principal é serializado; imagens/capas/desenhos estão dentro do 
 
 `npm run test:backup` executa `tests/backup.cjs`. Somente os seletores nativos de arquivo são substituídos para apontar a arquivos temporários. Os botões de Preferências, confirmação, validação, preload, IPC, leitura, escrita e reinício são os da aplicação. Os dados representativos são preparados diretamente no perfil fonte; as suítes adicionais criam e editam dados pela UI.
 
-O teste inclui comparação integral na exportação, importação em perfil limpo, comparação após reinício, visualização do timer pausado e página formatada, arquivo acima de 40 MiB, migração antiga, cancelamento, JSON inválido sem substituição e exportação diante de falha local simulada. Não registra inicialização nem dispara notificações reais; `--user-data-dir` isola os perfis. O teste pode usar `COMPASSO_EXECUTABLE` para validar uma compilação empacotada.
+O teste inclui comparação integral na exportação, importação em perfil limpo, comparação após reinício, visualização do timer pausado e página formatada, arquivo acima de 40 MiB, migração antiga, cancelamento, JSON inválido sem substituição e exportação diante de falha local simulada. Não registra inicialização nem dispara notificações reais; `--user-data-dir` isola os perfis. O teste pode usar `ORGANON_EXECUTABLE` (com alias legado aceito) para validar uma compilação empacotada.
 
 Evidências locais não versionadas: `test-output/backup-audit.json`, `backup-restored.png` e `backup-page-restored.png`. O JSON informa a pasta temporária com os backups e perfis sintéticos da última execução. As imagens da suíte de cadernos/anotações documentam criação e renderização de rabiscos e formatação.
 

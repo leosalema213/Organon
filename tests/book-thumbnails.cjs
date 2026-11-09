@@ -2,7 +2,7 @@ const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process');
 const root = path.resolve(__dirname, '..'), output = path.join(root, 'test-output'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-const executable = process.argv.includes('--packaged') ? path.join(root, 'release', require('../package.json').version, 'win-unpacked/Organon.exe') : process.env.COMPASSO_EXECUTABLE;
+const executable = process.argv.includes('--packaged') ? path.join(root, 'release', require('../package.json').version, 'win-unpacked/Organon.exe') : (process.env.ORGANON_EXECUTABLE || process.env.COMPASSO_EXECUTABLE);
 let app, page;
 const errors = [];
 async function launch(profile) {

@@ -6,7 +6,7 @@ const os = require('node:os');
 const root = path.resolve(__dirname, '..');
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
 (async () => {
-  const app = await electron.launch({ args: [root, `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), 'compasso-icon-'))}`], env });
+  const app = await electron.launch({ args: [root, `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), 'organon-icon-'))}`], env });
   try {
     const page = await app.firstWindow();
     const svg = fs.readFileSync(path.join(root, 'assets/icon.svg'), 'utf8');

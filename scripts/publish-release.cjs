@@ -4,13 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const crypto = require('node:crypto');
-const { Readable } = require('node:stream');
 const { version } = require('../package.json');
-const { INSTALLER_NAMES } = require('../electron/branding.cjs');
+const { INSTALLER_NAMES, LEGACY_REPOSITORY } = require('../electron/branding.cjs');
+const { prepareRepositories, describeArtifacts, publishRepositoryRelease } = require('./release-repositories.cjs');
 const { isProductionVersion } = require('../electron/versions.cjs');
 const { pluginReleaseAssets } = require('./plugin-release-assets.cjs');
-const { CATALOG_URL, MAX_CATALOG, download } = require('../electron/plugins.cjs');
-const REPO = 'leosalema213/app-estudos';
+const { downloadCatalog } = require('../electron/plugins.cjs');
 const root = path.resolve(__dirname, '..');
 function git(...args) { return cp.execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim(); }
 function token() {
@@ -24,6 +23,7 @@ function token() {
 }
 (async () => {
   if (!isProductionVersion(version)) throw new Error('Publicação de produção exige MAJOR.MINOR.PATCH, PATCH de 0 a 9 e sem sufixo preview.');
+  if (git('branch', '--show-current') !== 'main') throw new Error('A publicação deve partir da branch main aprovada.');
   if (git('status', '--porcelain')) throw new Error('Faça commit de todas as alterações antes de publicar.');
   const commit = git('rev-parse', 'HEAD');
   if (git('rev-parse', 'origin/main') !== commit) throw new Error('Envie o commit atual para origin/main antes de publicar.');
@@ -45,31 +45,25 @@ function token() {
   const reuseCatalog = process.argv.includes('--reuse-plugin-catalog');
   const pluginAssets = pluginReleaseAssets(root, version, reuseCatalog);
   if (reuseCatalog) {
-    const publishedCatalog = await download(CATALOG_URL, MAX_CATALOG);
+    const publishedCatalog = await downloadCatalog();
     if (!publishedCatalog.equals(fs.readFileSync(pluginAssets[0]))) throw new Error('O catálogo a reutilizar precisa ser idêntico ao da Release pública atual.');
   }
   artifacts.push(...pluginAssets);
+  // Keep the signed catalog compatible with clients that still validate the legacy package URLs.
+  const catalog = JSON.parse(JSON.parse(fs.readFileSync(pluginAssets[0], 'utf8')).payload);
+  if (catalog.plugins.some(plugin => !plugin.url.startsWith(`https://github.com/${LEGACY_REPOSITORY}/releases/download/`))) throw new Error('O catálogo espelhado precisa preservar os endereços dos clientes legados.');
+  const descriptors = await describeArtifacts(artifacts);
   const headers = { Authorization: `Bearer ${token()}`, 'User-Agent': 'Organon-release', Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
   async function request(url, options = {}) {
-    const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers }, signal: AbortSignal.timeout(600000) });
+    const { allow404, ...fetchOptions } = options;
+    const response = await fetch(url, { ...fetchOptions, headers: { ...headers, ...options.headers }, signal: AbortSignal.timeout(600000) });
+    if (allow404 && response.status === 404) return null;
     if (!response.ok) throw new Error(`GitHub respondeu ${response.status} ao publicar a Release.`);
     return response.json();
   }
-  const api = `https://api.github.com/repos/${REPO}/releases`;
   const changelog = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8').replace(/\r\n/g, '\n');
   const notes = changelog.split(`## ${version}\n`)[1]?.split('\n## ')[0]?.trim();
-  const releases = await request(api);
-  let release = releases.find(r => r.tag_name === `v${version}`);
-  if (release && !release.draft) { console.log(`Versão já publicada: ${release.html_url}`); return; }
-  if (!release) release = await request(api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag_name: `v${version}`, target_commitish: commit, name: `Organon ${version}`, draft: true, generate_release_notes: true, body: `${notes || 'Aplicativo de estudos para Windows.'}\n\nBaixe **Organon-Instalar.exe** para instalar ou atualizar, mantendo seus dados locais.` }) });
-  for (const file of artifacts) {
-    const name = path.basename(file);
-    const existing = release.assets.find(a => a.name === name);
-    if (existing) throw new Error(`O rascunho já contém ${name}. Confira os assets no GitHub antes de repetir.`);
-    const url = release.upload_url.split('{')[0] + '?name=' + encodeURIComponent(name);
-    await request(url, { method: 'POST', headers: { 'Content-Type': name.endsWith('.exe') || name.endsWith('.organon-plugin') ? 'application/octet-stream' : name.endsWith('.json') ? 'application/json' : 'text/plain', 'Content-Length': String(fs.statSync(file).size) }, body: Readable.toWeb(fs.createReadStream(file)), duplex: 'half' });
-    console.log(`Publicado: ${name}`);
-  }
-  release = await request(`${api}/${release.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draft: false, make_latest: 'true' }) });
-  console.log(`Release disponível: ${release.html_url}`);
+  const repositories = await prepareRepositories({ request, git });
+  // Legacy first: installed versions get a working bridge even if the primary upload needs a retry.
+  for (const repository of [...repositories].reverse()) await publishRepositoryRelease({ request, repository, version, commit, notes, artifacts: descriptors });
 })().catch(error => { console.error(error.message); process.exitCode = 1; });
