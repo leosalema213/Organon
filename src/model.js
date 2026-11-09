@@ -1,6 +1,6 @@
 import { isNoteImage, validNoteDocument } from './note-document.js';
 import { isNotebookColor, notebookIcons } from './book-appearance.js';
-import { calendarDate, validReminders } from './reminders.js';
+import { calendarDate, reminderSounds, validReminders } from './reminders.js';
 import { validKind, validKinds } from './block-kinds.js';
 import { validBooks } from './books.js';
 import { emptyAnki, normalizePresets, validAnki } from './anki.js';
@@ -20,7 +20,7 @@ export const themePresets = [
 ];
 export function orderedNotes(notes) { return [...notes].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)); }
 export function preferences(settings = {}) {
-  return { sound: settings.sound !== false, startWithWindows: settings.startWithWindows !== false, creditManualTime: settings.creditManualTime === true, theme: ['light', 'dark', 'custom'].includes(settings.theme) ? settings.theme : 'system', palette: themePresets.some(p => p.id === settings.palette) ? settings.palette : 'pink', density: densities.includes(settings.density) ? settings.density : 'compact', plansView: settings.plansView === 'list' ? 'list' : 'cards' };
+  return { sound: settings.sound !== false, reminderSound: reminderSounds.some(([id]) => id === settings.reminderSound) ? settings.reminderSound : 'chime', startWithWindows: settings.startWithWindows !== false, creditManualTime: settings.creditManualTime === true, theme: ['light', 'dark', 'custom'].includes(settings.theme) ? settings.theme : 'system', palette: themePresets.some(p => p.id === settings.palette) ? settings.palette : 'pink', density: densities.includes(settings.density) ? settings.density : 'compact', plansView: settings.plansView === 'list' ? 'list' : 'cards' };
 }
 export const recordKey = (date, planId, blockId) => `${date}|${planId}|${blockId}`;
 export function newBlock(type = 'lesson') { return { id: uid(), type, name: type === 'break' ? 'Pausa para respirar' : 'Nova aula', minutes: type === 'break' ? 5 : 25 }; }

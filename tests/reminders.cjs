@@ -36,6 +36,7 @@ let app;
   await daily.getByRole('checkbox', { name: 'Marcar como vista Revisar as anotações', exact: true }).click();
   await page.getByRole('button', { name: 'Dia anterior', exact: true }).click(); assert.equal(await daily.count(), 0);
   await page.getByRole('button', { name: 'Notas', exact: true }).click();
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
   await page.getByRole('button', { name: 'Vistas', exact: true }).click(); assert.equal(await page.locator('.reminder-card').count(), 2);
   await page.getByRole('checkbox', { name: 'Marcar como não vista Preparar a próxima aula', exact: true }).click();
   await page.getByRole('button', { name: 'Todas', exact: true }).click();

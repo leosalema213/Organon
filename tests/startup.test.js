@@ -53,6 +53,19 @@ test('one aggregated notification per launch opens notes without marking them se
   service.startup(notes); assert.equal(shown.length, 1);
   shown[0].emit('click'); assert.equal(opens, 1); assert.deepEqual(notes, before);
 });
+
+test('timed alarms stay outside the startup summary and use the selected app sound only', () => {
+  const shown = []; let opens = 0;
+  class Notification extends EventEmitter { static isSupported() { return true; } constructor(options) { super(); this.options = options; } show() { shown.push(this); } }
+  const note = { ...newReminder(today), title: 'Alarme', notifyOnStartup: true, time: '15:00' };
+  assert.deepEqual(eligibleReminders([note], today), []);
+  const service = new ReminderNotifications({ Notification, open: () => opens++ });
+  assert.equal(service.alarm(note).shown, true);
+  assert.equal(shown[0].options.silent, true);
+  assert.match(shown[0].options.title, /Alarme/);
+  shown[0].emit('click'); assert.equal(opens, 1);
+  assert.equal(service.alarm({ title: 'x'.repeat(121) }).shown, false);
+});
 test('no notification for disabled/seen/future notes or unsupported OS', () => {
   class Notification { static isSupported() { return false; } constructor() { throw Error('Must not create'); } }
   for (const notes of [[], [{ ...newReminder(today), title: 'Off' }], [{ ...newReminder(today), title: 'Seen', notifyOnStartup: true, seenDates: [today] }], [{ ...newReminder('2026-10-28'), title: 'Future', notifyOnStartup: true }], [{ ...newReminder(today), title: 'Unsupported', notifyOnStartup: true }]]) {

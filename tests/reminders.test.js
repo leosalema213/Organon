@@ -67,8 +67,10 @@ test('daily notes return next day while dated notes show only on their scheduled
 test('notes, read confirmations and manual credit survive backup roundtrip', () => {
   const { state, plan, block } = setup(true);
   const note = { ...newReminder(date), title: 'Lembrete', description: 'Um detalhe importante.', seenDates: [date] };
-  const next = { ...setManualDone(state, date, plan.id, block.id, true), reminders: [note] };
-  assert.deepEqual(validateData(JSON.parse(JSON.stringify(next))), { ...next, active: null });
+  const next = { ...setManualDone(state, date, plan.id, block.id, true, started), reminders: [note] };
+  assert.equal(next.active.blockId, plan.blocks[1].id);
+  assert.equal(next.active.running, false);
+  assert.deepEqual(validateData(JSON.parse(JSON.stringify(next))), next);
 });
 test('invalid dates, duplicated notes and inconsistent manual credit are rejected', () => {
   assert.equal(calendarDate('2026-02-30'), false); assert.equal(calendarDate('2028-02-29'), true);

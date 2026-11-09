@@ -56,7 +56,7 @@ contextBridge.exposeInMainWorld('desktop', {
     status: () => ipcRenderer.invoke('startup:status'),
     set: enabled => ipcRenderer.invoke('startup:set', enabled),
   },
-  reminders: { startup: () => ipcRenderer.invoke('reminders:startup') },
+  reminders: { startup: () => ipcRenderer.invoke('reminders:startup'), alarm: note => ipcRenderer.invoke('reminders:alarm', note) },
   onOpenReminders: callback => {
     const handler = () => callback();
     ipcRenderer.on('reminders:open', handler);

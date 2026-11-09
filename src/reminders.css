@@ -21,7 +21,7 @@
 .reminders-hint,.reminder-day-label { font-size:10px;color:#999; }
 .reminders-hint { margin-top:17px; }
 .reminders-empty { display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;min-height:220px;color:#999;font-size:12px; }
-.reminder-form { padding:20px 24px 0; }
+.reminder-form { padding:0; }
 .reminder-form>label { display:flex;flex-direction:column;gap:7px;color:#999;font-size:11px;margin-bottom:16px; }
 .reminder-form textarea { resize:vertical;min-height:100px;max-height:240px; }
 .reminder-description { margin-bottom:16px; }.reminder-description > span { display:block; color:var(--muted); font-size:11px; margin-bottom:7px; }
@@ -34,3 +34,16 @@
 .reminder-notify-setting p { font-size:10px;color:#999;margin-top:5px; }
 .reminder-notify-setting .toggle { flex-shrink:0; }
 @media(max-width:680px) { .reminder-day-label { display:none; }.reminder-card { padding:10px;gap:8px; } }
+.modal.modal.reminder-editor-modal { width:min(760px,calc(100vw - 32px)); }
+.reminder-quick-times,.reminder-view-controls { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px; }
+.reminder-view-controls label,.reminder-sound-row label { display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted); }
+.reminder-sound-row { display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin:16px 0 8px; }
+.reminder-form > .reminder-single-use { flex-direction:row;align-items:center;margin-top:16px; }
+.reminder-single-use input { width:16px;height:16px;flex-shrink:0; }
+.reminder-agenda { display:flex;flex-direction:column;gap:20px; }
+.reminder-agenda-day h2 { font-size:13px;margin-bottom:10px;text-transform:capitalize; }
+.reminder-agenda-row { display:grid;grid-template-columns:85px minmax(0,1fr);gap:12px;align-items:start;margin-bottom:8px; }
+.reminder-agenda-row > time { padding-top:12px;font-size:12px;color:var(--muted); }
+.reminder-alarm-description { white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px; }
+[data-theme="dark"] .reminders-page { --note-bg:#252525;--note-line:#484848;--note-ink:#ededed;--note-muted:#b5b5b5; }
+@media(max-width:680px) { .reminder-agenda-row { grid-template-columns:65px minmax(0,1fr);gap:6px; }.reminder-view-controls .tabs { flex-wrap:wrap; } }

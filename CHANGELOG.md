@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.6.9
+
+- Ampliar o modal de notas e agendar lembretes com data, horário e atalhos de 10 minutos, 30 minutos e 1 hora.
+- Excluir automaticamente notas de uso único após disparar, mantendo o aviso visível até dispensá-lo.
+- Consultar notas em agenda por dia, semana ou mês, com ordenação por horário e visualização alternativa em cartões.
+- Escolher entre três sons leves ou silêncio e reutilizar a última opção nas próximas notas.
+- Disparar lembretes com a janela minimizada e retomar pendências ao reabrir, sem repetir avisos já registrados.
+
 ## 0.6.8
 
 - Abrir a escolha da cópia da nuvem após o login, sem exigir acesso às preferências.

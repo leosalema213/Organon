@@ -16,7 +16,8 @@ import { emptyAnki, normalizePresets } from './anki.js';
 import CoverPicker, { coverIcons } from './CoverPicker.jsx';
 import { customCoverStyle, planIconKey } from './book-appearance.js';
 import RemindersPage, { DailyNotes, ReminderEditor } from './Reminders.jsx';
-import { markReminder, newReminder } from './reminders.js';
+import { consumeReminder, dueReminders, localReminderDay, markReminder, newReminder, pendingReminders } from './reminders.js';
+import { playReminderSound, unlockReminderAudio } from './reminder-audio.js';
 import { version as appVersion } from '../package.json';
 import organonWordmark from '../assets/branding/organon-wordmark.svg';
 import Preferences from './Preferences.jsx';
@@ -88,6 +89,7 @@ export default function App() {
   const [ankiRequest, setAnkiRequest] = useState(null);
   const ankiDrafts = useRef(new Map());
   const [reminderEditor, setReminderEditor] = useState(null);
+  const [reminderAlarms, setReminderAlarms] = useState([]);
   const [notesFilter, setNotesFilter] = useState('all');
   const reminderStartupChecked = useRef(false);
   const [tutorial, setTutorial] = useState(null);
@@ -111,7 +113,7 @@ export default function App() {
   const account = useCloudAccount(!!data, {
     refreshShared: async () => { for (const space of business.spaces) await business.api.syncShared(space.id); business.api.refresh(); },
     flush: async settle => { if (settle) update(value => pause(value)); return persist(dataRef.current); },
-    restore: async value => { const restored = validateData(value); ankiDrafts.current.clear(); setAnkiRequest(null); update(restored); return persist(restored); },
+    restore: async value => { const restored = validateData(value); ankiDrafts.current.clear(); setAnkiRequest(null); setReminderEditor(null); setReminderAlarms([]); update(restored); return persist(restored); },
   });
   const business = useBusiness(account.status?.user);
   const ankiReviewCount = useAnkiReviewCount(data?.anki);
@@ -130,7 +132,11 @@ export default function App() {
     persist(dataRef.current).then(saved => {
       if (!saved) return;
       window.desktop.updates?.opened?.().catch(() => {});
-      window.desktop.reminders.startup().catch(() => {});
+      window.desktop.reminders.startup().then(result => {
+        if (!result?.shown) return;
+        const audible = pendingReminders(dataRef.current.reminders || [], localReminderDay()).find(note => note.notifyOnStartup && !note.time && note.sound !== 'silent');
+        if (audible) playReminderSound(audible.sound || 'chime');
+      }).catch(() => {});
     });
   }, [!!data]);
   const update = (fn) => {
@@ -176,6 +182,32 @@ export default function App() {
     checkpoint.current = { at: Date.now(), data };
     persist(data);
   }, [data]);
+  useEffect(() => {
+    const unlock = () => unlockReminderAudio();
+    document.addEventListener('pointerdown', unlock);
+    document.addEventListener('keydown', unlock);
+    return () => { document.removeEventListener('pointerdown', unlock); document.removeEventListener('keydown', unlock); };
+  }, []);
+  useEffect(() => {
+    if (!data) return;
+    const check = () => {
+      const current = dataRef.current;
+      if (!current) return;
+      const now = new Date(), due = dueReminders(current.reminders || [], now);
+      if (!due.length) return;
+      // Consume against the latest state before the next tick; viewing an alert is separate from marking a note seen.
+      update(state => ({ ...state, reminders: due.reduce((notes, note) => consumeReminder(notes, note.id, localReminderDay(now)), state.reminders || []) }));
+      setReminderEditor(editor => due.some(note => note.id === editor?.id && note.singleUse) ? null : editor);
+      setReminderAlarms(alarms => [...alarms, ...due]);
+      const audible = due.find(note => note.sound !== 'silent');
+      if (audible) playReminderSound(audible.sound || 'chime');
+      for (const note of due) window.desktop?.reminders?.alarm?.({ title: note.title, description: note.description }).catch(() => {});
+    };
+    check();
+    const timer = setInterval(check, 1000);
+    window.addEventListener('focus', check);
+    return () => { clearInterval(timer); window.removeEventListener('focus', check); };
+  }, [!!data]);
   const themePreference = data?.settings?.theme || 'system';
   const theme = themePreference === 'custom' ? 'dark' : themePreference === 'system' ? systemDark ? 'dark' : 'light' : themePreference;
   const palette = data?.settings?.palette || 'pink';
@@ -257,9 +289,9 @@ export default function App() {
   function toggleDone(plan, block) {
     update(s => setManualDone(s, date, plan.id, block.id, !getRecord(s, date, plan.id, block.id).done));
   }
-  function toggleReminder(note, seen) { update(s => ({ ...s, reminders: markReminder(s.reminders || [], note.id, date, seen) })); }
+  function toggleReminder(note, seen, occurrenceDate = date) { update(s => ({ ...s, reminders: markReminder(s.reminders || [], note.id, occurrenceDate, seen) })); }
   function saveReminder(value) {
-    update(s => ({ ...s, reminders: (s.reminders || []).some(note => note.id === value.id) ? s.reminders.map(note => note.id === value.id ? value : note) : [value, ...(s.reminders || [])] }));
+    update(s => ({ ...s, reminders: (s.reminders || []).some(note => note.id === value.id) ? s.reminders.map(note => note.id === value.id ? { ...value, notifiedDates: note.schedule === value.schedule && note.date === value.date && note.time === value.time && note.notifyOnStartup === value.notifyOnStartup ? (note.notifiedDates || []) : [] } : note) : [value, ...(s.reminders || [])] }));
     setReminderEditor(null);
   }
   function finishPlan(plan) {
@@ -308,7 +340,7 @@ export default function App() {
       setConfirm({ title: 'Restaurar este backup?', cancel: () => window.desktop?.books?.cancelRestore(restoreToken).catch(() => {}), text: `${imported.plans.length} planos, ${imported.books.length} livros e ${imported.anki.cards.length} cards Anki encontrados. Isso substituirá os dados atuais. Exporte um backup antes se quiser preservá-los.`, action: async () => {
         try {
           const restored = window.desktop?.books ? validateData(await window.desktop.books.restore(imported._booksRestoreToken)) : imported;
-          ankiDrafts.current.clear(); setAnkiRequest(null); update(restored); setSettings(false);
+          ankiDrafts.current.clear(); setAnkiRequest(null); setReminderEditor(null); setReminderAlarms([]); update(restored); setSettings(false);
           if (await persist(restored)) setToast('Backup restaurado.'); else setToast('Backup carregado, mas não foi possível salvar no computador. Exporte uma cópia antes de fechar.');
         } catch (error) { setToast(`Não foi possível restaurar: ${error.message}`); }
       } });
@@ -361,7 +393,7 @@ export default function App() {
         {saveError && <div className="error-banner">{saveError}<button onClick={backup}>Exportar backup</button></div>}
         {page === 'today' && <>
           <section className="stats-grid"><Stat icon={Clock3} label="TEMPO DE FOCO" value={duration(focusMs(data, date, date))} detail={`${plannedMinutes} min de estudo planejados`} color="violet" /><Stat icon={CheckCheck} label="BLOCOS CONCLUÍDOS" value={<>{doneCount}<small> / {summary.total}</small></>}  color="green" /><Stat icon={Target} label="META DO DIA" value={`${summary.percent}%`}  color="orange" /></section>
-          <DailyNotes notes={data.reminders || []} date={date} onSeen={toggleReminder} onEdit={setReminderEditor} onCreate={() => setReminderEditor(newReminder(date))} onManage={() => setPage('notes')} />
+          <DailyNotes notes={data.reminders || []} date={date} onSeen={toggleReminder} onEdit={setReminderEditor} onCreate={() => setReminderEditor(newReminder(date, data.settings.reminderSound))} onManage={() => setPage('notes')} />
           <div className="section-heading"><div><h2>Seu roteiro <span>{todayPlans.length} planos</span></h2></div><div className="date-switch"><IconButton title="Dia anterior" onClick={() => { selectedDate.setDate(selectedDate.getDate() - 1); setDate(dayKey(selectedDate)); }}><ChevronLeft size={16} /></IconButton><button title="Voltar para hoje" onClick={() => setDate(dayKey())}><CalendarDays size={15} />{date === dayKey() ? 'Hoje, ' : ''}{selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')}</button><IconButton title="Próximo dia" onClick={() => { selectedDate.setDate(selectedDate.getDate() + 1); setDate(dayKey(selectedDate)); }}><ChevronRight size={16} /></IconButton></div></div>
           <div className="filter-row"><div className="tabs">{[['all', 'Todos'], ['pending', 'Pendentes'], ['progress', 'Em progresso'], ['done', 'Concluídos']].map(([key, label]) => <button key={key} className={filter === key ? 'selected' : ''} onClick={() => setFilter(key)}>{label}{key === 'all' && <span>{todayPlans.length}</span>}</button>)}</div></div>
           <div className="plan-list">{shownPlans.map(plan => <StudyCard key={plan.id} {...{ plan, data, date, status: statusOf(plan), togglePlay, toggleDone }} onEdit={() => setEditor(structuredClone(data.plans.find(p => p.id === plan.id)))} onEditDay={() => setDailyEditor({ plan: structuredClone(plan), date })} onEditBlock={block => openBlockEditor(plan, block)} onNotes={noteId => openNotebook(plan.id, noteId)} onDuplicate={() => duplicate(plan)} onComplete={() => finishPlan(plan)} onDelete={() => deletePlan(plan)} onLinks={() => setLinkingAnkiPlan(plan.id)} onBooks={() => { setBooksPlan(plan.id); setPage('reading'); }} onAnki={() => { setAnkiPlan(plan.id); setPage('anki'); }} />)}{!shownPlans.length && <Empty icon={CalendarDays} title={todayPlans.length ? 'Nenhum plano com esse status.' : 'Um dia livre no seu roteiro.'} text={todayPlans.length ? 'Experimente outro filtro para ver suas aulas.' : 'Você pode descansar ou ajustar os dias de um plano em “Planos de estudo”.'} />}</div>
@@ -369,7 +401,7 @@ export default function App() {
         </>}
         {page === 'plans' && <><div className="section-heading"><h2>Seus planos <span>{catalogPlans.length}</span></h2><div className="view-switch" role="group" aria-label="Visualização dos planos"><IconButton title="Exibir em cards" aria-pressed={plansView === 'cards'} onClick={() => update(s => ({ ...s, settings: { ...s.settings, plansView: 'cards' } }))}><LayoutGrid size={16} /></IconButton><IconButton title="Exibir em lista" aria-pressed={plansView === 'list'} onClick={() => update(s => ({ ...s, settings: { ...s.settings, plansView: 'list' } }))}><List size={17} /></IconButton></div></div><div className="plan-status-filters"><div className="tabs" role="group" aria-label="Status dos planos">{[['active', 'Em andamento'], ['completed', 'Finalizados'], ['all', 'Todos']].map(([key, label]) => <button key={key} className={planFilter === key ? 'selected' : ''} aria-pressed={planFilter === key} onClick={() => setPlanFilter(key)}>{label}<span>{data.plans.filter(plan => key === 'all' || (key === 'completed' ? !!plan.completedAt : !plan.completedAt)).length}</span></button>)}</div></div>{!catalogPlans.length && <p className="plans-filter-empty">{planFilter === 'completed' ? 'Nenhum plano finalizado ainda.' : 'Nenhum plano em andamento.'}</p>}<div className={`plans-grid ${plansView === 'list' ? 'plans-list' : ''}`}>{catalogPlans.map(plan => <article className="overview-card" key={plan.id}><div className="overview-top"><PlanIcon plan={plan} /></div><h2>{plan.name}{plan.completedAt && <span className="plan-finished-label"><Check size={11} />Finalizado</span>}</h2><p>{plan.description || 'Um novo objetivo para conquistar.'}</p><div className="weekdays">{weekdayOrder.map(d => <span key={d} className={plan.days.includes(d) ? `on ${plan.color}` : ''} style={plan.days.includes(d) && plan.color.startsWith('#') ? { background: plan.color, color: customCoverStyle(plan.color)['--cover-ink'] } : undefined}>{days[d][0]}</span>)}</div><div className="overview-meta"><span><BookOpen size={14} />{planBlockCount(plan)}</span><span><Clock3 size={14} />{plan.blocks.reduce((s, b) => s + b.minutes, 0)} min com pausas</span></div><div className="overview-actions"><button aria-label={`Livros do plano ${plan.name}`} onClick={() => { setBooksPlan(plan.id); setPage('reading'); }}><BookOpen size={15} />Livros ({(data.books || []).filter(book => book.planIds.includes(plan.id)).length})</button><button aria-expanded={!!expandedNotes[plan.id]} onClick={() => plan.notes.length ? setExpandedNotes(s => ({ ...s, [plan.id]: !s[plan.id] })) : openNotebook(plan.id)}><NotebookText size={15} />Anotações ({plan.notes.length})</button><button aria-label={`Anki do plano ${plan.name}`} onClick={() => { setAnkiPlan(plan.id); setPage('anki'); }}><Copy size={15} />Anki ({(data.anki?.decks || []).filter(deck => deck.planIds?.includes(plan.id)).length})</button><PlanMenu plan={plan} onEdit={() => setEditor(structuredClone(plan))} onDuplicate={() => duplicate(plan)} onComplete={() => finishPlan(plan)} onDelete={() => deletePlan(plan)} onLinks={() => setLinkingAnkiPlan(plan.id)} /></div>{expandedNotes[plan.id] && plan.notes.length > 0 && <NotesPreview plan={plan} onOpen={noteId => openNotebook(plan.id, noteId)} />}</article>)}<button className="add-plan-card" onClick={() => setEditor(newPlan())}><span><Plus size={25} /></span><strong>Um novo objetivo</strong><small>Crie seu próximo plano de estudo</small></button></div></>}
         {page === 'metrics' && <Metrics data={data} onOpenAnki={() => { setAnkiPlan(''); setPage('anki'); }} onViewCompleted={() => { setPlanFilter('completed'); setPage('plans'); }} />}
-        {page === 'notes' && <RemindersPage filter={notesFilter} onFilter={setNotesFilter} notes={data.reminders || []} date={date} onEdit={setReminderEditor} onCreate={() => setReminderEditor(newReminder(date))} onSeen={toggleReminder} onDelete={id => update(s => ({ ...s, reminders: s.reminders.filter(note => note.id !== id) }))} Modal={Modal} />}
+        {page === 'notes' && <RemindersPage filter={notesFilter} onFilter={setNotesFilter} notes={data.reminders || []} date={date} onEdit={setReminderEditor} onCreate={day => setReminderEditor(newReminder(day || date, data.settings.reminderSound))} onSeen={toggleReminder} onDelete={id => update(s => ({ ...s, reminders: s.reminders.filter(note => note.id !== id) }))} Modal={Modal} />}
         {modulePage && business.error && <p className="form-error" role="alert">{business.error}</p>}
         {page === 'teams' && <Teams key={account.status?.user?.id || 'offline'} api={business.api} user={account.status?.user} workspace={business.workspace} />}
         {page === 'kanban' && <Kanban key={(account.status?.user?.id || '') + (business.workspace?.id || '')} api={business.api} user={account.status?.user} workspace={business.workspace} />}
@@ -388,7 +420,7 @@ export default function App() {
     {dailyEditor && <PlanEditor plan={dailyEditor.plan} day={dailyEditor.date} kinds={data.blockKinds || []} onCreateKind={kind => update(s => ({ ...s, blockKinds: [...(s.blockKinds || []), kind] }))} onClose={() => setDailyEditor(null)} onSave={saveDay} />}
     {editor && <PlanEditor plan={editor} kinds={data.blockKinds || []} onCreateKind={kind => update(s => ({ ...s, blockKinds: [...(s.blockKinds || []), kind] }))} firstRun={tutorial === 'creating'} onClose={() => { setEditor(null); if (tutorial === 'creating') setTutorial('welcome'); }} onSave={savePlan} />}
     {(!window.desktop?.cloud || account.status) && !account.open && ['welcome', 'tips'].includes(tutorial) && <Tutorial stage={tutorial} Modal={Modal} onStart={() => { setTutorial('creating'); setEditor(firstPlan()); }} onClose={finishTutorial} onDone={() => { finishTutorial(); setPage('plans'); }} />}
-    {reminderEditor && <ReminderEditor key={reminderEditor.id} value={reminderEditor} onClose={() => setReminderEditor(null)} onSave={saveReminder} Modal={Modal} />}
+    {reminderEditor && <ReminderEditor key={reminderEditor.id} value={reminderEditor} onClose={() => setReminderEditor(null)} onSave={saveReminder} onSoundChange={sound => update(s => ({ ...s, settings: { ...s.settings, reminderSound: sound } }))} Modal={Modal} />}
     {notesPlan && data.plans.some(p => p.id === notesPlan) && <Notebook key={notesPlan} plan={data.plans.find(p => p.id === notesPlan)} date={date} initialNote={initialNote} saveError={saveError} onClose={() => setNotesPlan(null)} onChange={change => update(s => ({ ...s, plans: s.plans.map(p => p.id === notesPlan ? typeof change === 'function' ? change(p) : change : p) }))} notify={setToast} Modal={Modal} Sketch={Sketch} />}
     {settings && !account.open && <Preferences settings={data.settings} onChange={fields => { unlockAudio(); update(s => ({ ...s, settings: { ...s.settings, ...fields } })); }} onClose={() => setSettings(false)} onTestSound={ring} onBackup={backup} onImport={importBackup} onTutorial={() => { setSettings(false); setTutorial('tips'); }} updates={appUpdates} account={account} Modal={Modal} />}
     {account.open && <AccountDialog account={account} Modal={Modal} />}
@@ -397,6 +429,7 @@ export default function App() {
     {confirm && <Modal title={confirm.title} onClose={() => { confirm.cancel?.(); setConfirm(null); }} small><p className="confirm-text">{confirm.text}</p><div className="modal-actions"><button className="secondary" onClick={() => { confirm.cancel?.(); setConfirm(null); }}>Cancelar</button><button className="primary" onClick={() => { confirm.action(); setConfirm(null); }}>Confirmar</button></div></Modal>}
     {appUpdates.open && <UpdateDialog updates={appUpdates} onInstall={installUpdate} Modal={Modal} />}
     {linkingAnkiPlan && data.plans.some(p => p.id === linkingAnkiPlan) && <AnkiPlanLinks a={data.anki} plan={data.plans.find(p => p.id === linkingAnkiPlan)} Modal={Modal} onClose={() => setLinkingAnkiPlan(null)} onSave={anki => { update(s => ({ ...s, anki })); setLinkingAnkiPlan(null); }} />}
+    {reminderAlarms.length > 0 && <Modal title="Lembrete" className="reminder-editor-modal" onClose={() => setReminderAlarms(alarms => alarms.slice(1))}><div role="alert"><h3>{reminderAlarms[0].title}</h3><p className="reminder-alarm-description">{reminderAlarms[0].description}</p>{reminderAlarms[0].singleUse && <p className="reminders-hint">Lembrete de uso único excluído após disparar.</p>}<div className="modal-actions"><button className="primary" onClick={() => setReminderAlarms(alarms => alarms.slice(1))}>Dispensar{reminderAlarms.length > 1 ? ` (${reminderAlarms.length} avisos)` : ''}</button></div></div></Modal>}
     {(imageBusy || toast) && <div className="toast" role="status"><Check size={18} /><span>{imageBusy ? 'Preparando imagem…' : toast}</span>{!imageBusy && <IconButton title="Fechar aviso" onClick={() => setToast('')}><X size={16} /></IconButton>}</div>}
   </div>;
 }

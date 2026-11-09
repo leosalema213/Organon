@@ -152,6 +152,7 @@ else {
     ipcMain.handle('startup:status', e => { if (trusted(e)) return startup.status(); });
     ipcMain.handle('startup:set', (e, enabled) => { if (trusted(e)) return startup.set(enabled); });
     ipcMain.handle('reminders:startup', e => { if (trusted(e)) return reminderNotifications.startup(readData()?.reminders || []); });
+    ipcMain.handle('reminders:alarm', (e, note) => { if (trusted(e)) return reminderNotifications.alarm(note); });
     win.on('move', rememberCompact);
     win.on('resize', rememberCompact);
     win.on('close', () => { rememberCompact(); clearTimeout(windowSaveTimer); saveWindowState(); });
