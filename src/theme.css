@@ -114,6 +114,7 @@
 .compact-controls>div { gap:6px;margin-left:auto; }
 .compact-controls .round-play { width:32px;height:32px; }
 .compact-controls .icon-button { width:26px;height:26px; }
+.icon-button.player-complete { flex-shrink:0; }
 .compact-extra { display:contents; }
 .compact-extra-options { position:absolute;top:3px;left:10px;height:26px;display:flex;align-items:center;gap:4px;padding:0 3px;background:#fbfaff;border-radius:5px; }
 .compact-extra-options button { min-width:48px;height:26px;font-size:11px;color:#393939;border-radius:4px;background:#00000009; }

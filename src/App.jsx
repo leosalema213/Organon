@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, BookOpen, CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, CircleHelp, Clock3, Coffee, Copy, Download, Expand, Flame, GripVertical, LayoutDashboard, ListFilter, Minus, MoreHorizontal, Moon, Sun, Pause, Pencil, Play, Plus, RotateCcw, Settings, Sparkles, Target, Trash2, TrendingUp, Upload, Volume2, VolumeX, X, ImagePlus, PenLine, PanelTopClose, LayoutGrid, List, NotebookText, StickyNote } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, BookOpen, CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, CircleDashed, CircleHelp, Clock3, Coffee, Copy, Download, Expand, Flame, GripVertical, LayoutDashboard, ListFilter, Minus, MoreHorizontal, Moon, Sun, Pause, Pencil, Play, Plus, RotateCcw, Settings, Sparkles, Target, Trash2, TrendingUp, Upload, Volume2, VolumeX, X, ImagePlus, PenLine, PanelTopClose, LayoutGrid, List, NotebookText, StickyNote } from 'lucide-react';
 import { clock, completedPlanSummary, dailySummary, dayKey, dayPlan, days, duration, editDailyBlock, extendLesson, firstPlan, focusMs, getRecord, newBlock, newPlan, pause, play, preferences, prepareNextBlock, recordKey, resetTimer, seed, saveDailyPlan, savePlanTemplate, setManualDone, setPlanCompleted, themePresets, tick, uid, validateData } from './model.js';
 import Tutorial from './Tutorial.jsx';
 import Notebook, { NotesPreview } from './Notebook.jsx';
@@ -21,12 +21,13 @@ import { version as appVersion } from '../package.json';
 import organonWordmark from '../assets/branding/organon-wordmark.svg';
 import Preferences from './Preferences.jsx';
 import { UpdateDialog, useAppUpdates } from './Updates.jsx';
-import { AccountBadge, AccountDialog, CloudIndicator, useCloudAccount } from './CloudAccount.jsx';
+import { AccountBadge, AccountDialog, CloudIndicator, SyncConflictDialog, useCloudAccount } from './CloudAccount.jsx';
 import { SharedNotebooks, WorkspaceSelector, useBusiness } from './Business.jsx';
 import Teams from './teams/Teams.jsx';
 import Notifications from './teams/Notifications.jsx';
 import Kanban from './kanban/index.jsx';
 import PluginPage from './plugin-system/PluginPage.jsx';
+import PluginUpdateDialog from './plugin-system/PluginUpdateDialog.jsx';
 import { pendingImages, waitForImages } from './images.js';
 import BlockKinds, { BlockIcon } from './BlockKinds.jsx';
 import { blockKind, builtInKinds, customBlock, planBlockCount } from './block-kinds.js';
@@ -323,6 +324,17 @@ export default function App() {
   const active = data.active;
   const activePlan = active && dayPlan(data, active.planId, active.date);
   const activeBlock = activePlan?.blocks.find(b => b.id === active.blockId);
+  const completeBlock = <IconButton className="icon-button player-complete"
+    title={activeBlock ? `Concluir ${activeBlock.name}` : 'Concluir bloco'}
+    disabled={!activeBlock || !active.remainingMs}
+    onClick={() => update(s => {
+      const { date, planId, blockId } = active;
+      if (s.active?.date !== date || s.active.planId !== planId || s.active.blockId !== blockId || !s.active.remainingMs) return s;
+      const wasDone = getRecord(s, date, planId, blockId).done;
+      const next = setManualDone(s, date, planId, blockId, true);
+      // A replay can already be marked done in the daily record.
+      return wasDone && next.active?.remainingMs === 0 ? prepareNextBlock(next, date, planId, blockId) : next;
+    })}><CircleDashed size={16} /></IconButton>;
   const statusOf = (plan) => {
     if (plan.blocks.length && plan.blocks.every(b => getRecord(data, date, plan.id, b.id).done)) return 'done';
     if (plan.blocks.some(b => { const r = getRecord(data, date, plan.id, b.id); return r.done || r.elapsedMs > 0; }) || (active?.date === date && active.planId === plan.id && active.running)) return 'progress';
@@ -332,7 +344,7 @@ export default function App() {
   const shownPlans = todayPlans.filter(p => filter === 'all' || statusOf(p) === filter);
   if (compact) return <div className="compact-window">
     <div className="compact-title drag"><h2 title={active?.blockName}>{active?.blockName || 'Escolha uma aula'}</h2><div className="no-drag">{['available', 'ready'].includes(appUpdates.state.status) && <IconButton title="Atualização disponível" onClick={() => { changeCompact(false); appUpdates.show(); }}><Download size={13} /></IconButton>}<IconButton title="Voltar ao aplicativo" onClick={() => changeCompact(false)}><Expand size={13} /></IconButton><IconButton title="Fechar modo compacto e voltar" onClick={() => changeCompact(false)}><X size={14} /></IconButton></div></div>
-    <div className="compact-content"><div className="compact-controls"><strong>{clock(active?.remainingMs || 0)}</strong><span className={`timer-status ${active?.running ? 'running' : ''}`}>{active?.remainingMs === 0 ? 'Concluído' : active?.running ? 'Em foco' : 'Pausado'}</span><div><IconButton title="Reiniciar cronômetro" disabled={!active} onClick={() => update(s => resetTimer(s))}><RotateCcw size={15} /></IconButton><button className="round-play" aria-label={active?.running ? 'Pausar' : 'Continuar'} disabled={!activeBlock} onClick={() => { unlockAudio(); update(s => active.running ? pause(s) : play(s, activePlan, activeBlock, active.date)); }}>{active?.running ? <Pause size={18} /> : <Play size={18} />}</button><CompactExtraTime disabled={!activeBlock || active?.type !== 'lesson'} onAdd={minutes => update(s => extendLesson(s, minutes))} /></div></div><div className="timer-track"><i style={{ width: `${active ? 100 * (1 - active.remainingMs / active.totalMs) : 0}%` }} /></div></div>
+    <div className="compact-content"><div className="compact-controls"><strong>{clock(active?.remainingMs || 0)}</strong><span className={`timer-status ${active?.running ? 'running' : ''}`}>{active?.remainingMs === 0 ? 'Concluído' : active?.running ? 'Em foco' : 'Pausado'}</span><div>{completeBlock}<IconButton title="Reiniciar cronômetro" disabled={!active} onClick={() => update(s => resetTimer(s))}><RotateCcw size={15} /></IconButton><button className="round-play" aria-label={active?.running ? 'Pausar' : 'Continuar'} disabled={!activeBlock} onClick={() => { unlockAudio(); update(s => active.running ? pause(s) : play(s, activePlan, activeBlock, active.date)); }}>{active?.running ? <Pause size={18} /> : <Play size={18} />}</button><CompactExtraTime disabled={!activeBlock || active?.type !== 'lesson'} onAdd={minutes => update(s => extendLesson(s, minutes))} /></div></div><div className="timer-track"><i style={{ width: `${active ? 100 * (1 - active.remainingMs / active.totalMs) : 0}%` }} /></div></div>
     {saveError && <span className="compact-error">Falha ao salvar — volte ao app e exporte um backup.</span>}
   </div>;
   return <div className="app-shell">
@@ -369,7 +381,7 @@ export default function App() {
         {page === 'reading' && <Books key={`${account.status?.user?.id || ''}:${booksPlan}`} business={business} user={account.status?.user} onAnki={book => setAnkiRequest({ key: crypto.randomUUID(), book, context: book.orgId ? `shared-book:${book.orgId}:${book.id}` : `book:${book.id}` })} books={data.books || []} plans={data.plans} initialPlan={booksPlan} onChange={(change, saveNow) => { update(s => ({ ...s, books: typeof change === 'function' ? change(s.books || []) : change })); if (saveNow) return persist(dataRef.current); }} notify={setToast} saveError={saveError} Modal={Modal} />}
 
       </div></div>
-      {active && activePlan && <div className="bottom-player"><div className="player-info"><PlanIcon plan={activePlan} size={18} /><div><small>{active.planName} <span>• {active.type === 'break' ? 'DESCANSO' : 'EM FOCO'}</span></small><strong>{active.blockName}</strong></div></div><div className="player-middle"><IconButton title="Reiniciar cronômetro" onClick={() => setConfirm({ title: 'Reiniciar este cronômetro?', text: 'O contador volta à duração inicial. O tempo já estudado continua no histórico.', action: () => update(s => resetTimer(s)) })}><RotateCcw size={16} /></IconButton><button className="round-play" aria-label={active.running ? 'Pausar aula' : 'Continuar aula'} onClick={() => { unlockAudio(); update(s => active.running ? pause(s) : play(s, activePlan, activeBlock, active.date)); }}>{active.running ? <Pause size={18} /> : <Play size={18} />}</button><strong className="player-time">{clock(active.remainingMs)}<small> / {clock(active.totalMs)}</small></strong><CompactExtraTime disabled={!activeBlock || active?.type !== 'lesson'} onAdd={minutes => update(s => extendLesson(s, minutes))} /><span className="player-state">{!active.remainingMs ? 'Concluído' : active.running ? 'Concentre-se no agora' : 'Pausado'}</span></div><button className="compact-button" aria-label="Modo compacto" title="Modo compacto" onClick={() => changeCompact(true)}><PanelTopClose size={15} /></button><div className="bottom-progress" style={{ width: `${100 * (1 - active.remainingMs / active.totalMs)}%` }} /></div>}
+      {active && activePlan && <div className="bottom-player">{completeBlock}<div className="player-info"><PlanIcon plan={activePlan} size={18} /><div><small>{active.planName} <span>• {active.type === 'break' ? 'DESCANSO' : 'EM FOCO'}</span></small><strong>{active.blockName}</strong></div></div><div className="player-middle"><IconButton title="Reiniciar cronômetro" onClick={() => setConfirm({ title: 'Reiniciar este cronômetro?', text: 'O contador volta à duração inicial. O tempo já estudado continua no histórico.', action: () => update(s => resetTimer(s)) })}><RotateCcw size={16} /></IconButton><button className="round-play" aria-label={active.running ? 'Pausar aula' : 'Continuar aula'} onClick={() => { unlockAudio(); update(s => active.running ? pause(s) : play(s, activePlan, activeBlock, active.date)); }}>{active.running ? <Pause size={18} /> : <Play size={18} />}</button><strong className="player-time">{clock(active.remainingMs)}<small> / {clock(active.totalMs)}</small></strong><CompactExtraTime disabled={!activeBlock || active?.type !== 'lesson'} onAdd={minutes => update(s => extendLesson(s, minutes))} /><span className="player-state">{!active.remainingMs ? 'Concluído' : active.running ? 'Concentre-se no agora' : 'Pausado'}</span></div><button className="compact-button" aria-label="Modo compacto" title="Modo compacto" onClick={() => changeCompact(true)}><PanelTopClose size={15} /></button><div className="bottom-progress" style={{ width: `${100 * (1 - active.remainingMs / active.totalMs)}%` }} /></div>}
     </main>
     <AnkiComposer request={ankiRequest} drafts={ankiDrafts} collection={data.anki} plans={data.plans} Modal={Modal} notify={setToast} onClose={() => setAnkiRequest(null)} onChange={change => update(s => ({ ...s, anki: typeof change === 'function' ? change(s.anki) : change }))} />
     {blockEditor && <BlockEditor day={blockEditor.date} block={blockEditor.block} onClose={() => setBlockEditor(null)} onSave={saveBlock} />}
@@ -380,6 +392,8 @@ export default function App() {
     {notesPlan && data.plans.some(p => p.id === notesPlan) && <Notebook key={notesPlan} plan={data.plans.find(p => p.id === notesPlan)} date={date} initialNote={initialNote} saveError={saveError} onClose={() => setNotesPlan(null)} onChange={change => update(s => ({ ...s, plans: s.plans.map(p => p.id === notesPlan ? typeof change === 'function' ? change(p) : change : p) }))} notify={setToast} Modal={Modal} Sketch={Sketch} />}
     {settings && !account.open && <Preferences settings={data.settings} onChange={fields => { unlockAudio(); update(s => ({ ...s, settings: { ...s.settings, ...fields } })); }} onClose={() => setSettings(false)} onTestSound={ring} onBackup={backup} onImport={importBackup} onTutorial={() => { setSettings(false); setTutorial('tips'); }} updates={appUpdates} account={account} Modal={Modal} />}
     {account.open && <AccountDialog account={account} Modal={Modal} />}
+    {!account.open && account.conflictOpen && <SyncConflictDialog account={account} Modal={Modal} />}
+    <PluginUpdateDialog plugins={business.plugins} hidden={account.open || account.conflictOpen || appUpdates.open || settings || !!tutorial} />
     {confirm && <Modal title={confirm.title} onClose={() => { confirm.cancel?.(); setConfirm(null); }} small><p className="confirm-text">{confirm.text}</p><div className="modal-actions"><button className="secondary" onClick={() => { confirm.cancel?.(); setConfirm(null); }}>Cancelar</button><button className="primary" onClick={() => { confirm.action(); setConfirm(null); }}>Confirmar</button></div></Modal>}
     {appUpdates.open && <UpdateDialog updates={appUpdates} onInstall={installUpdate} Modal={Modal} />}
     {linkingAnkiPlan && data.plans.some(p => p.id === linkingAnkiPlan) && <AnkiPlanLinks a={data.anki} plan={data.plans.find(p => p.id === linkingAnkiPlan)} Modal={Modal} onClose={() => setLinkingAnkiPlan(null)} onSave={anki => { update(s => ({ ...s, anki })); setLinkingAnkiPlan(null); }} />}

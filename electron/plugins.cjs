@@ -98,7 +98,7 @@ async function download(url, limit, fetchImpl = globalThis.fetch) {
   fail('Redirecionamentos demais no download.');
 }
 
-function createPluginManager({ directory, hostVersion, publicKey, fetchImpl = globalThis.fetch, emit = () => {} }) {
+function createPluginManager({ directory, hostVersion, publicKey, fetchImpl = globalThis.fetch, emit = () => {}, onSelectionChanged = () => {} }) {
   version(hostVersion, true);
   const root = path.resolve(directory), objects = path.join(root, 'objects'), registryFile = path.join(root, 'installed.json');
   let registry = { format: 1, sequence: 0, installed: {} }, catalogEnvelope = null, busy = false, initialized = false, initializing;
@@ -203,6 +203,7 @@ function createPluginManager({ directory, hostVersion, publicKey, fetchImpl = gl
         catch (error) { if (error.code !== 'ENOENT') throw error; await fs.rename(temporary, target); }
         const current = { sha256: item.sha256, envelope: catalogEnvelope };
         await write({ ...registry, sequence: catalog.sequence, installed: { ...registry.installed, [id]: { current, previous: old?.current?.sha256 !== item.sha256 ? old?.current || null : old?.previous || null } } });
+        if (!old) onSelectionChanged();
       } finally { await fs.unlink(temporary).catch(() => {}); }
       return { installed: true, id, version: item.version };
     });
@@ -211,6 +212,7 @@ function createPluginManager({ directory, hostVersion, publicKey, fetchImpl = gl
     assertId(id);
     return exclusive(async () => {
       const installed = { ...registry.installed }; delete installed[id]; await write({ ...registry, installed });
+      onSelectionChanged();
       // Only unreferenced package objects are pruned; domain data is never located here.
       return { removed: true, id };
     });

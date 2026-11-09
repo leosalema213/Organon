@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.6.8
+
+- Abrir a escolha da cópia da nuvem após o login, sem exigir acesso às preferências.
+- Mostrar etapas, contagem e barra de sincronização na lateral, com downloads e envios em paralelo limitado.
+- Levar a lista de plugins na sincronização, instalar os ausentes ao restaurar e repetir downloads que falharem.
+- Consultar atualizações de plugins durante o uso e oferecer uma janela para confirmar a instalação.
+- Concluir aulas e descansos pela barra inferior ou pelo modo compacto e avançar para o próximo bloco pendente.
+
 ## 0.6.7
 
 - Mostrar entradas e saldo com receitas projetadas em linhas separadas dos valores confirmados no Financeiro.

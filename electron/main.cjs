@@ -87,11 +87,21 @@ else {
       webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
     win.setMenu(null);
     cloud = new CloudSync({ directory: app.getPath('userData'), safeStorage, fetchImpl: net.fetch.bind(net), readData,
+      readPlugins: async () => (await plugins.list()).plugins.filter(plugin => plugin.installed).map(plugin => plugin.id),
+      restorePlugins: async (ids, progress) => {
+        const status = await plugins.list();
+        const missing = ids.filter(id => !status.plugins.some(plugin => plugin.id === id && plugin.installed));
+        if (!missing.length) return;
+        await plugins.check();
+        let completed = 0; progress(completed, missing.length);
+        for (const id of missing) { await plugins.install(id); progress(++completed, missing.length); }
+      },
       enabled: require('./cloud-config.cjs').enabled || (isolated && process.argv.includes('--enable-cloud-test')),
       skipPrompt: isolated && process.argv.includes('--skip-account-prompt'),
       emit: status => { if (!win.isDestroyed()) win.webContents.send('cloud:status', status); business?.syncSession().catch(() => {}); } });
     const plugins = createPluginManager({ directory: path.join(app.getPath('userData'), 'plugins'), hostVersion: app.getVersion(),
       publicKey: require('./plugin-public-key.cjs'),
+      onSelectionChanged: () => cloud?.markDirty(),
       emit: status => { if (!win.isDestroyed()) win.webContents.send('plugins:changed', status); } });
     win.webContents.session.protocol.handle('organon-plugin', request => plugins.handleRequest(request));
     const moduleSender = event => trusted(event) && event.senderFrame === win.webContents.mainFrame;

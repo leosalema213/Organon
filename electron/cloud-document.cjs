@@ -1,4 +1,5 @@
 const { createHash } = require('node:crypto');
+const { mapTransfers, limitTransfers } = require('./cloud-transfer.cjs');
 const hash = value => createHash('sha256').update(value).digest('hex');
 const canonical = value => JSON.stringify(value, function (key, item) { return item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item; });
 const imagePattern = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
@@ -26,7 +27,8 @@ function packDocument(data, files) {
   if (payload.active) payload.active = { ...payload.active, running: false, startedAt: 0 };
   return { payload, checksum: hash(canonical(payload)), assets };
 }
-async function unpackDocument(payload, download, files) {
+async function unpackDocument(payload, download, files, onItem) {
+  download = limitTransfers(download);
   const cache = new Map();
   async function visit(value) {
     if (value && typeof value === 'object' && Object.hasOwn(value, 'organonAsset')) {
@@ -38,7 +40,7 @@ async function unpackDocument(payload, download, files) {
       }));
       return `data:${value.mime};base64,${(await cache.get(digest)).toString('base64')}`;
     }
-    if (Array.isArray(value)) { const result = []; for (const item of value) result.push(await visit(item)); return result; }
+    if (Array.isArray(value)) return mapTransfers(value, visit);
     if (value && typeof value === 'object') { const result = {}; for (const [key, item] of Object.entries(value)) result[key] = await visit(item); return result; }
     return value;
   }
@@ -46,7 +48,7 @@ async function unpackDocument(payload, download, files) {
   const data = await visit(metadata);
   if (organonFiles || data.books?.length || Object.keys(data.anki?.media || {}).length) {
     if (!files) throw new Error('A cópia online exige restauração dos arquivos.');
-    await files.restore(data, organonFiles, download);
+    await files.restore(data, organonFiles, download, onItem);
   }
   return data;
 }

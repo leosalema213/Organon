@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const { createHash } = require('node:crypto');
 const { BookFiles, LIMIT: BOOK_LIMIT } = require('./books.cjs');
 const { LIMIT: MEDIA_LIMIT } = require('./anki-media.cjs');
+const { mapTransfers } = require('./cloud-transfer.cjs');
 const CHUNK_SIZE = 4 * 1024 * 1024;
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const validHash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
@@ -44,7 +45,7 @@ class CloudFiles {
     }
     return { manifest: assets.size ? manifest : null, assets };
   }
-  async restore(data, manifest, download) {
+  async restore(data, manifest, download, onItem = () => {}) {
     const entries = this.entries(data);
     if (!entries.length && !manifest) return;
     if (manifest?.version !== 1 || !manifest.books || !manifest.anki) throw new Error('A cópia online não contém todos os arquivos.');
@@ -52,15 +53,16 @@ class CloudFiles {
       const { meta } = entry, item = manifest[entry.kind][meta.hash];
       if (!validHash(meta.hash) || !Number.isInteger(meta.size) || meta.size < 1 || meta.size > entry.limit || item?.size !== meta.size || !Array.isArray(item.chunks) || item.chunks.length !== Math.ceil(meta.size / CHUNK_SIZE) || !item.chunks.every(validHash)) throw new Error('Manifesto de arquivos online inválido.');
       try {
-        if (fs.statSync(entry.file()).size === meta.size) { entry.check(fs.readFileSync(entry.file())); continue; }
+        if (fs.statSync(entry.file()).size === meta.size) { entry.check(fs.readFileSync(entry.file())); onItem(meta.title || meta.name || (entry.kind === 'books' ? 'Livro' : 'Mídia de carta')); continue; }
       } catch { /* A missing/corrupt local file can be recovered from the verified cloud copy. */ }
       const bytes = Buffer.alloc(meta.size);
-      for (let index = 0; index < item.chunks.length; index++) {
-        const chunk = await download(item.chunks[index]);
+      await mapTransfers(item.chunks, async (digest, index) => {
+        const chunk = await download(digest);
         if (chunk.length !== Math.min(CHUNK_SIZE, meta.size - index * CHUNK_SIZE) || hash(chunk) !== item.chunks[index]) throw new Error('Arquivo online incompleto ou corrompido.');
         chunk.copy(bytes, index * CHUNK_SIZE);
-      }
+      });
       entry.check(bytes); entry.install(bytes);
+      onItem(meta.title || meta.name || (entry.kind === 'books' ? 'Livro' : 'Mídia de carta'));
     }
   }
 }

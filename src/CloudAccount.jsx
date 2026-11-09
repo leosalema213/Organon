@@ -10,16 +10,27 @@ export function syncMessage(status) {
   if (status?.busy) {
     if (progress?.stage === 'auth') return 'Conectando à conta…';
     if (progress?.stage === 'profile') return 'Salvando perfil…';
+    if (progress?.stage === 'checking') return 'Conferindo a cópia da nuvem…';
     if (progress?.stage === 'preparing') return 'Preparando seus arquivos…';
     if (progress?.stage === 'uploading' && progress.total) return `Enviando arquivos: ${progress.completed} de ${progress.total}`;
     if (progress?.stage === 'committing') return 'Concluindo sincronização…';
-    if (progress?.stage === 'downloading') return 'Recebendo dados da nuvem…';
+    if (progress?.stage === 'downloading') return progress.total ? `Baixando arquivos e partes: ${progress.completed} de ${progress.total}` : 'Recebendo dados da nuvem…';
+    if (progress?.stage === 'restoring') return 'Aplicando dados recebidos…';
+    if (progress?.stage === 'plugins') return progress.total ? `Instalando plugins: ${progress.completed} de ${progress.total}` : 'Conferindo seus plugins…';
     return 'Sincronizando…';
   }
   if (status?.conflict) return 'Há cópias para conferir';
   if (status?.error) return 'Não foi possível sincronizar';
+  if (status?.pluginError) return 'Plugins pendentes · tente sincronizar';
   if (status?.pending) return 'Envio pendente';
   return status?.lastSync ? 'Dados sincronizados' : 'Conta conectada';
+}
+
+export function SyncProgress({ status }) {
+  if (!status?.busy) return null;
+  const progress = status.progress;
+  const measured = ['uploading', 'downloading', 'plugins'].includes(progress?.stage) && progress.total > 0;
+  return <><progress className="cloud-progress" aria-label={syncMessage(status)} value={measured ? Math.min(progress.completed, progress.total) : undefined} max={measured ? progress.total : undefined} />{progress?.receivedItem && <small className="cloud-received">Recebido: {progress.receivedItem}</small>}</>;
 }
 
 function ProfileAvatar({ user }) {
@@ -30,13 +41,13 @@ function ProfileAvatar({ user }) {
 export function AccountBadge({ account, saveError, onClick }) {
   const user = account.status?.user;
   if (!user) return <div className="local-badge"><span className="live-dot" /><span>{saveError ? 'Erro ao salvar' : 'Dados locais'}<small>{saveError ? 'Exporte um backup' : 'Salvos automaticamente'}</small></span></div>;
-  return <button type="button" className="account-badge" onClick={onClick} title="Abrir meu perfil" aria-label="Abrir meu perfil"><ProfileAvatar user={user} /><span><strong>{user.nickname || user.name || user.email.split('@')[0]}</strong><small role="status">{saveError ? 'Erro ao salvar neste computador' : syncMessage(account.status)}</small></span></button>;
+  return <button type="button" className="account-badge" onClick={onClick} title="Abrir meu perfil" aria-label="Abrir meu perfil"><ProfileAvatar user={user} /><span><strong>{user.nickname || user.name || user.email.split('@')[0]}</strong><small role="status">{saveError ? 'Erro ao salvar neste computador' : syncMessage(account.status)}</small><SyncProgress status={account.status} /></span></button>;
 }
 
 export function CloudIndicator({ status, onSync }) {
   const [syncing, setSyncing] = useState(false);
   const busy = syncing || status?.busy;
-  const pending = status?.user && !status.conflict && (status.error || status.pending);
+  const pending = status?.user && !status.conflict && (status.error || status.pluginError || status.pending);
   const label = !status?.user ? 'LOCAL' : busy ? 'SINCRONIZANDO' : status.conflict ? 'CONFERIR CÓPIAS' : pending ? 'ENVIO PENDENTE' : 'CONECTADO';
   const content = <><span className="live-dot" />{label}</>;
   if (onSync && (syncing || pending && !status.busy)) {
@@ -50,7 +61,15 @@ export function CloudIndicator({ status, onSync }) {
 
 export function useCloudAccount(ready, { flush, restore, refreshShared }) {
   const [status, setStatus] = useState(null), [open, setOpen] = useState(false), [error, setError] = useState('');
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const conflictKey = useRef(null);
   const callbacks = useRef(); callbacks.current = { flush, restore, refreshShared };
+  useEffect(() => {
+    const key = status?.conflict ? `${status.user?.id}:${status.conflict.updatedAt}:${status.conflict.differentAccount}` : null;
+    if (key && key !== conflictKey.current) setConflictOpen(true);
+    if (!key) setConflictOpen(false);
+    conflictKey.current = key;
+  }, [status]);
   useEffect(() => {
     if (!ready || !window.desktop?.cloud) return;
     let mounted = true;
@@ -72,7 +91,7 @@ export function useCloudAccount(ready, { flush, restore, refreshShared }) {
     try { const value = await action(); if (value) setStatus(value); return value; }
     catch (error) { setError(error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); return null; }
   }
-  return { status, open, error,
+  return { status, open, error, conflictOpen, dismissConflict: () => setConflictOpen(false),
     show: () => { setError(''); setOpen(true); },
     close: async () => { if (await call(() => window.desktop.cloud.skip())) setOpen(false); },
     authenticate: async (mode, email, password, profile) => {
@@ -89,9 +108,35 @@ export function useCloudAccount(ready, { flush, restore, refreshShared }) {
       if (!await callbacks.current.flush(true)) throw new Error('Não foi possível preservar seus dados locais.');
       const data = await window.desktop.cloud.download();
       if (!await callbacks.current.restore(data)) throw new Error('Não foi possível salvar o backup neste computador.');
-      return window.desktop.cloud.acceptDownload();
+      const result = await window.desktop.cloud.acceptDownload();
+      await callbacks.current.refreshShared?.();
+      return result;
     }),
   };
+}
+
+export function SyncConflictDialog({ account, Modal }) {
+  const [choice, setChoice] = useState(null), [working, setWorking] = useState(false);
+  const disabled = working || account.status?.busy;
+  async function apply() {
+    setWorking(true);
+    try {
+      const result = await (choice === 'remote' ? account.chooseRemote() : account.chooseLocal());
+      if (result && !result.conflict) account.dismissConflict();
+    } finally { setWorking(false); }
+  }
+  return <Modal small title="Seus dados estão na nuvem" onClose={() => !disabled && account.dismissConflict()}>
+    <p>{account.status?.conflict?.differentAccount ? 'Os dados deste computador estavam vinculados a outra conta.' : 'Encontramos uma cópia diferente na sua conta. Escolha como começar neste computador.'}</p>
+    <p>Ao trazer os dados da nuvem, guardaremos uma cópia de recuperação dos dados locais. Os plugins dessa cópia serão instalados automaticamente.</p>
+    {choice && <p>{choice === 'remote' ? 'Trazer a cópia da nuvem e substituir os dados deste computador?' : 'Substituir a cópia da nuvem pelos dados deste computador?'}</p>}
+    <p role="status">{disabled ? syncMessage(account.status) : ''}</p><SyncProgress status={account.status} />
+    {(account.error || account.status?.error) && <p className="form-error" role="alert">{account.error || account.status.error}</p>}
+    <div className="modal-actions">
+      {working && <button className="secondary" onClick={account.dismissConflict}>Continuar usando</button>}
+      <button className="secondary" disabled={disabled} onClick={() => choice ? setChoice(null) : account.dismissConflict()}>{choice ? 'Voltar' : 'Depois'}</button>
+      {choice ? <button className="primary" disabled={disabled} onClick={apply}>Confirmar escolha</button> : <><button className="secondary" disabled={disabled} onClick={() => setChoice('local')}>Usar dados locais</button><button className="primary" disabled={disabled} onClick={() => setChoice('remote')}>Trazer dados da nuvem</button></>}
+    </div>
+  </Modal>;
 }
 
 export function AccountDialog({ account, Modal }) {
@@ -151,7 +196,7 @@ export function CloudPanel({ account, Modal }) {
     {!status?.user ? <button className="primary" onClick={account.show}>Entrar ou criar conta</button> : <>
       <p role="status">{syncMessage(status)}</p>
       {status.busy && status.progress?.stage !== 'profile' && <p>Você já está conectado. Pode continuar usando o Organon enquanto seus dados são sincronizados.</p>}
-      {status.progress?.stage === 'uploading' && status.progress.total > 0 && <progress className="cloud-progress" aria-label="Envio de arquivos" value={status.progress.completed} max={status.progress.total} />}
+      <SyncProgress status={status} />
       {status.lastSync && <p>Última sincronização: {new Date(status.lastSync).toLocaleString('pt-BR')}</p>}
       {status.conflict && <div className="cloud-conflict">
         <strong>{status.conflict.differentAccount ? 'Estes dados locais estavam vinculados a outra conta.' : 'Este computador e a nuvem têm cópias diferentes.'}</strong>
@@ -166,6 +211,7 @@ export function CloudPanel({ account, Modal }) {
     </>}
     {(account.error || status?.error) && <p className="form-error" role="alert">{account.error || status.error}</p>}
     {status?.profileError && <p className="form-error" role="alert">{status.profileError}</p>}
+    {status?.pluginError && <p className="form-error" role="alert">{status.pluginError}</p>}
     {editing && status?.user && <ProfileEditor account={account} Modal={Modal} onClose={() => setEditing(false)} />}
   </div>;
 }

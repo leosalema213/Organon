@@ -44,7 +44,7 @@ function harness() {
     }
     throw new Error('Unexpected endpoint: ' + endpoint);
   };
-  const create = () => new CloudSync({ directory, safeStorage, fetchImpl, readData: () => local });
+  const create = (options = {}) => new CloudSync({ directory, safeStorage, fetchImpl, readData: () => local, ...options });
   return { directory, server, create, get local() { return local; }, set local(value) { local = value; } };
 }
 
@@ -202,4 +202,69 @@ test('refresh finishing after signout cannot restore the old session', {timeout:
   cloud.fetch=async(url,options)=>{if(url.includes('grant_type=refresh_token')){started();await gate;}return original(url,options);};
   cloud.session.expires_at=0;const refreshing=cloud.token();await pending;await cloud.signOut();release();
   await assert.rejects(refreshing,/conta mudou/);assert.equal(cloud.status().user,null);assert.equal(fs.existsSync(cloud.sessionFile),false);
+});
+
+test('cloud selection restores missing plugins after data acknowledgment and retries failures after restart', async () => {
+  const h = harness();
+  let installed = ['financeiro', 'mei'], fail = true, attempts = 0;
+  const options = { readPlugins: async () => installed, restorePlugins: async ids => {
+    attempts++;
+    assert.deepEqual(ids, ['financeiro', 'mei']);
+    installed = ['financeiro'];
+    if (fail) throw new Error('Catálogo indisponível');
+    installed = [...ids];
+  } };
+  const cloud = h.create(options);
+  await cloud.authenticate('login', 'test@example.invalid', 'test-password'); await cloud.sync();
+  assert.deepEqual(h.server.row.payload.organonPlugins, ['financeiro', 'mei']);
+  installed = [];
+  const data = await cloud.download();
+  assert.equal(attempts, 0, 'Download alone must not install plugins or acknowledge data');
+  assert.equal(data.organonPlugins, undefined, 'Transport metadata must not enter the study document');
+  h.local = data;
+  await cloud.acceptDownload();
+  assert.equal(cloud.status().conflict, null);
+  assert.match(cloud.status().pluginError, /faltam plugins/);
+  assert.deepEqual(cloud.meta.pluginRestore.ids, ['financeiro', 'mei']);
+  const restarted = h.create(options); await restarted.ready;
+  fail = false; await restarted.sync();
+  assert.equal(attempts, 2); assert.deepEqual(installed, ['financeiro', 'mei']);
+  assert.equal(restarted.meta.pluginRestore, undefined); assert.equal(restarted.status().pluginError, '');
+  installed = ['financeiro']; await restarted.sync();
+  assert.deepEqual(h.server.row.payload.organonPlugins, ['financeiro'], 'Explicit removal is reflected in the next snapshot');
+});
+
+test('download reports counts, rejects unknown plugins and cannot acknowledge another account backup', async () => {
+  const h = harness(), cloud = h.create();
+  await cloud.authenticate('login', 'test@example.invalid', 'test-password'); await cloud.sync();
+  const progress = []; cloud.emit = status => { if (status.progress) progress.push(status.progress); };
+  await cloud.download();
+  assert(progress.some(p => p.stage === 'downloading' && p.total === 1 && p.completed === 1));
+  await cloud.signOut(); await cloud.authenticate('login', 'other@example.invalid', 'test-password');
+  await assert.rejects(cloud.acceptDownload(), /esta conta/);
+  h.server.row.payload.organonPlugins = ['arbitrary-code'];
+  const { hash } = require('../electron/cloud-document.cjs');
+  h.server.row.checksum = hash(canonical(h.server.row.payload));
+  await assert.rejects(cloud.download(), /plugins online inválida/);
+});
+
+test('transfer workers bound concurrency and wait for in-flight work after a failure', async () => {
+  const { mapTransfers, limitTransfers } = require('../electron/cloud-transfer.cjs');
+  let active = 0, maximum = 0, finished = 0;
+  const transfer = limitTransfers(async value => {
+    active++; maximum = Math.max(maximum, active);
+    await new Promise(resolve => setImmediate(resolve));
+    active--; finished++; return value;
+  });
+  assert.deepEqual(await Promise.all(Array.from({ length: 12 }, (_, i) => transfer(i))), Array.from({ length: 12 }, (_, i) => i));
+  assert.equal(maximum, 3); assert.equal(finished, 12);
+  let release, started;
+  const gate = new Promise(resolve => { release = resolve; });
+  const waiting = new Promise(resolve => { started = resolve; });
+  let settled = false;
+  const result = mapTransfers([0, 1, 2, 3], async value => {
+    if (value === 0) throw new Error('transfer failed');
+    started(); await gate;
+  }).catch(error => { settled = true; assert.match(error.message, /transfer failed/); });
+  await waiting; assert.equal(settled, false); release(); await result;
 });
