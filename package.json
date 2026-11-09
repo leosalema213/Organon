@@ -1,6 +1,6 @@
 {
   "name": "organon",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "private": true,
   "description": "Seu ritmo de estudo, um bloco de cada vez.",
   "author": "Organon",
@@ -13,7 +13,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "node scripts/build-realtime.mjs && vite build",
+    "build": "node scripts/build-realtime.mjs && node scripts/build-spelling.mjs && vite build",
     "start": "npm run build && electron .",
     "desktop": "electron .",
     "test": "node --test tests/*.test.js",
@@ -56,9 +56,11 @@
     "@tiptap/extensions": "^3.32.0",
     "@tiptap/pm": "^3.32.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "dictionary-pt": "4.0.0",
     "electron": "^45.0.0",
     "electron-builder": "^26.18.0",
     "foliate-js": "https://github.com/johnfactotum/foliate-js/archive/78914aef4466eb960965702401634c2cb348e9b1.tar.gz",
+    "hunspell-asm": "4.0.2",
     "imagetracerjs": "^1.2.6",
     "lucide-react": "^1.62.0",
     "pdfjs-dist": "^6.4.299",
@@ -69,6 +71,9 @@
     "vite": "^8.3.5"
   },
   "build": {
+    "asarUnpack": [
+      "dist/spelling/**"
+    ],
     "afterPack": "./scripts/verify-package.cjs",
     "appId": "br.com.compasso.estudos",
     "productName": "Organon",

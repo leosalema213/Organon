@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.7.2
+
+- Oferecer sugestões de correção ortográfica no botão direito em cadernos, notas e demais campos editáveis, com ações de edição em português.
+- Usar dicionário local de português brasileiro no Windows, sem enviar texto à internet, com opção de adicionar ou remover palavras pessoais.
+- Preservar formatação, imagens, salvamento e desfazer/refazer ao corrigir uma palavra.
+
 ## 0.7.1
 
 - Alinhar os controles da agenda, usar ícones nas setas e compactar o modal das notas com dia e horário lado a lado.

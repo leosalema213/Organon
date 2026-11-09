@@ -2,6 +2,7 @@ node_modules/
 dist/
 release/
 electron/vendor/
+public/spelling/
 test-output/
 *.lnk
 .env

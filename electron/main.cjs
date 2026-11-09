@@ -1,10 +1,12 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog, powerMonitor, nativeTheme, nativeImage, net, screen, shell, safeStorage, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, dialog, Menu, powerMonitor, nativeTheme, nativeImage, net, screen, shell, safeStorage, protocol } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { AppUpdates } = require('./updates.cjs');
 const { fitCompactBounds } = require('./compact-bounds.cjs');
 const { WindowsStartup } = require('./startup.cjs');
+const { installSpelling } = require('./spelling.cjs');
+const { SpellingEngine } = require('./spelling-engine.cjs');
 const { CloudSync } = require('./cloud.cjs');
 const { BookFiles } = require('./books.cjs');
 const { createPluginManager, registerPluginIpc, scheme } = require('./plugins.cjs');
@@ -81,11 +83,14 @@ else {
     const installed = ['Uninstall Organon.exe', 'Uninstall Compasso.exe'].some(name => fs.existsSync(path.join(path.dirname(process.execPath), name)));
     startup = new WindowsStartup({ app, path: process.execPath, available: process.platform === 'win32' && app.isPackaged && installed && !isolated && !process.env.PORTABLE_EXECUTABLE_FILE });
     try { startup.sync(readData()?.settings); } catch { /* The renderer reports data errors without replacing the file. */ }
+    const spellingEngine = process.platform === 'win32' ? new SpellingEngine({ directory: app.isPackaged ? path.join(process.resourcesPath, 'app.asar.unpacked/dist/spelling') : path.join(__dirname, '../dist/spelling') }) : null;
     win = new BrowserWindow({ width: 1260, height: 850, minWidth: 840, minHeight: 620, frame: false,
       backgroundColor: supportsGlass ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#101010' : '#f6f7f9', backgroundMaterial: supportsGlass ? 'acrylic' : 'none',
       icon: nativeImage.createFromPath(path.join(__dirname, '../assets/icon.png')), title: 'Organon',
-      webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
+      webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: !spellingEngine, backgroundThrottling: false } });
     win.setMenu(null);
+    const spelling = installSpelling({ win, Menu, engine: spellingEngine, onError: message => { if (!win.isDestroyed()) dialog.showMessageBox(win, { type: 'warning', title: 'Dicionário do Organon', message, buttons: ['OK'] }).catch(() => {}); } });
+    ipcMain.handle('spelling:check', (event, words) => trusted(event) ? spelling.checkWords(words) : []);
     cloud = new CloudSync({ directory: app.getPath('userData'), safeStorage, fetchImpl: net.fetch.bind(net), readData,
       readPlugins: async () => (await plugins.list()).plugins.filter(plugin => plugin.installed).map(plugin => plugin.id),
       restorePlugins: async (ids, progress) => {

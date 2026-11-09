@@ -49,7 +49,7 @@ export default forwardRef(function NoteEditor({ note, onChange, notify, rich = t
       content: noteDocument(note),
       onCreate: ({ editor }) => { editor.view.dom.dataset.empty = String(editor.isEmpty); },
       editorProps: {
-        attributes: { class: 'notebook-text', role: 'textbox', 'aria-label': 'Texto da anotação', 'aria-multiline': 'true', 'data-placeholder': 'Escreva aqui…' },
+        attributes: { class: 'notebook-text', role: 'textbox', 'aria-label': 'Texto da anotação', 'aria-multiline': 'true', 'data-placeholder': 'Escreva aqui…', spellcheck: 'true' },
         handlePaste: (_view, event) => {
           if (!editor.isEditable) return false;
           const files = [...event.clipboardData.items].filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);

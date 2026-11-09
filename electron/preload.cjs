@@ -1,4 +1,18 @@
 const { contextBridge, ipcRenderer } = require('electron');
+if (process.platform === 'win32') {
+  const { webFrame } = require('electron');
+  const enableSpelling = () => webFrame.setSpellCheckProvider('pt-BR', { spellCheck(words, callback) {
+    const groups = [];
+    for (let index = 0; index < words.length; index += 256) groups.push(ipcRenderer.invoke('spelling:check', words.slice(index, index + 256)));
+    Promise.all(groups).then(values => { try { callback(values.flat()); } catch {} }, () => { try { callback([]); } catch {} });
+  } });
+  window.addEventListener('DOMContentLoaded', enableSpelling, { once: true });
+  // Chromium may replace its text-check client while initializing the document.
+  // Restore the provider when a user enters an editable field, before typing.
+  window.addEventListener('focusin', event => {
+    if (event.target?.matches('input, textarea, [contenteditable="true"]') && event.target.spellcheck) enableSpelling();
+  }, true);
+}
 contextBridge.exposeInMainWorld('desktop', {
   load: () => ipcRenderer.invoke('data:load'),
   save: (data) => ipcRenderer.invoke('data:save', data),

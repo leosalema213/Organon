@@ -36,7 +36,7 @@ export default forwardRef(function RichTextField({ content, label, identity, onC
       element: host.current, extensions: [Document, Paragraph.extend({ parseHTML: () => [{ tag: 'p' }, { tag: 'div' }] }), Text, HardBreak, UndoRedo, ...richExtensions, ...(loadImage ? [Image] : []), Limit], content,
       editable: !disabled, autofocus: autoFocus ? 'start' : false,
       editorProps: {
-        attributes: { class: 'notebook-text rich-text-content', role: 'textbox', 'aria-label': label, 'aria-multiline': 'true' },
+        attributes: { class: 'notebook-text rich-text-content', role: 'textbox', 'aria-label': label, 'aria-multiline': 'true', spellcheck: 'true' },
         handlePaste: (_view, event) => {
           const files = [...event.clipboardData.items].filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
           if (!files.length || !callbacks.current.onFiles) return false;

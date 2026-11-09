@@ -32,6 +32,8 @@ Os links correntes do README, metadados do pacote e endereço principal de atual
 
 Os catálogos continuam assinados: URLs antigas não são editadas dentro de envelopes existentes. Novos catálogos espelhados continuam usando URLs do canal legado para que clientes anteriores possam validá-los; os pacotes são enviados aos dois repositórios. A nova versão aceita somente URLs exatas desses dois repositórios, além de conferir assinatura, sequência, tamanho e SHA-256 como antes.
 
+Não remover o repositório antigo apenas porque o aplicativo já foi atualizado: os catálogos atuais ainda apontam para os pacotes assinados hospedados nele. Antes de uma eventual remoção, migrar/publicar esses assets e os catálogos, ajustar a política de espelho/URLs e verificar instalação, atualização, reparo e rollback dos plugins em perfis novos e existentes. Também é necessário encerrar a dependência dos atualizadores antigos. Este lote não autoriza nem executa essa remoção.
+
 ## Verificações preparadas
 
 - `tests/repository-migration.test.js`: criação do destino, preservação do canal antigo, publicação dos mesmos bytes, recuperação de upload parcial, fallback, catálogo assinado e execução do atualizador real obtido da tag `v0.7.0` contra metadados simulados.
