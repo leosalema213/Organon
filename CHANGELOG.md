@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.7.0
+
+- Preparar a primeira tarefa pendente de hoje ao reabrir com uma seleção de dia anterior, preservando o histórico e o progresso parcial.
+- Trocar a tarefa pausada na virada do dia; se uma aula estiver rodando, aguardar sua conclusão antes de preparar o dia atual pausado.
+- Limpar a seleção antiga quando o roteiro de hoje não tiver pendências, respeitando planos concluídos e ajustes de cada data.
+
 ## 0.6.9
 
 - Ampliar o modal de notas e agendar lembretes com data, horário e atalhos de 10 minutos, 30 minutos e 1 hora.

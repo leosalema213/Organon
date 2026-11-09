@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, BookOpen, CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, CircleDashed, CircleHelp, Clock3, Coffee, Copy, Download, Expand, Flame, GripVertical, LayoutDashboard, ListFilter, Minus, MoreHorizontal, Moon, Sun, Pause, Pencil, Play, Plus, RotateCcw, Settings, Sparkles, Target, Trash2, TrendingUp, Upload, Volume2, VolumeX, X, ImagePlus, PenLine, PanelTopClose, LayoutGrid, List, NotebookText, StickyNote } from 'lucide-react';
-import { clock, completedPlanSummary, dailySummary, dayKey, dayPlan, days, duration, editDailyBlock, extendLesson, firstPlan, focusMs, getRecord, newBlock, newPlan, pause, play, preferences, prepareNextBlock, recordKey, resetTimer, seed, saveDailyPlan, savePlanTemplate, setManualDone, setPlanCompleted, themePresets, tick, uid, validateData } from './model.js';
+import { clock, completedPlanSummary, dailySummary, dayKey, dayPlan, days, duration, editDailyBlock, extendLesson, firstPlan, focusMs, getRecord, newBlock, newPlan, pause, play, preferences, prepareCurrentDay, prepareNextBlock, recordKey, resetTimer, seed, saveDailyPlan, savePlanTemplate, setManualDone, setPlanCompleted, themePresets, tick, uid, validateData } from './model.js';
 import Tutorial from './Tutorial.jsx';
 import Notebook, { NotesPreview } from './Notebook.jsx';
 import Library from './Library.jsx';
@@ -113,7 +113,7 @@ export default function App() {
   const account = useCloudAccount(!!data, {
     refreshShared: async () => { for (const space of business.spaces) await business.api.syncShared(space.id); business.api.refresh(); },
     flush: async settle => { if (settle) update(value => pause(value)); return persist(dataRef.current); },
-    restore: async value => { const restored = validateData(value); ankiDrafts.current.clear(); setAnkiRequest(null); setReminderEditor(null); setReminderAlarms([]); update(restored); return persist(restored); },
+    restore: async value => { const restored = prepareCurrentDay(validateData(value)); ankiDrafts.current.clear(); setAnkiRequest(null); setReminderEditor(null); setReminderAlarms([]); update(restored); return persist(restored); },
   });
   const business = useBusiness(account.status?.user);
   const ankiReviewCount = useAnkiReviewCount(data?.anki);
@@ -167,7 +167,7 @@ export default function App() {
         if (next.active && next.plans.find(plan => plan.id === next.active.planId)?.completedAt) next.active = null;
         if (next.active) next.active = { ...next.active, running: false, startedAt: Date.now() };
         if (next.active && getRecord(next, next.active.date, next.active.planId, next.active.blockId).done) next.active = prepareNextBlock(next, next.active.date, next.active.planId, next.active.blockId).active;
-        update(next); initialized.current = true;
+        update(prepareCurrentDay(next)); initialized.current = true;
       } catch (err) { setFatal(err.message); }
     })();
   }, []);
@@ -238,10 +238,11 @@ export default function App() {
       if (today !== currentDay.current) {
         const previous = currentDay.current; currentDay.current = today;
         setDate(selected => selected === previous ? today : selected);
+        if (dataRef.current) update(s => prepareCurrentDay(s));
       }
       if (!dataRef.current?.active?.running) return;
       const result = tick(dataRef.current);
-      update(result.state);
+      update(result.finished ? prepareCurrentDay(result.state) : result.state);
       if (result.finished) {
         const active = result.completed || result.state.active;
         if (result.state.settings.sound) ring();
@@ -287,7 +288,7 @@ export default function App() {
     await appUpdates.install();
   }
   function toggleDone(plan, block) {
-    update(s => setManualDone(s, date, plan.id, block.id, !getRecord(s, date, plan.id, block.id).done));
+    update(s => prepareCurrentDay(setManualDone(s, date, plan.id, block.id, !getRecord(s, date, plan.id, block.id).done)));
   }
   function toggleReminder(note, seen, occurrenceDate = date) { update(s => ({ ...s, reminders: markReminder(s.reminders || [], note.id, occurrenceDate, seen) })); }
   function saveReminder(value) {
@@ -339,7 +340,7 @@ export default function App() {
       if (!window.desktop && (imported.books.length || Object.keys(imported.anki.media).length)) throw new Error('Restaure backups com livros ou mídia Anki no aplicativo desktop.');
       setConfirm({ title: 'Restaurar este backup?', cancel: () => window.desktop?.books?.cancelRestore(restoreToken).catch(() => {}), text: `${imported.plans.length} planos, ${imported.books.length} livros e ${imported.anki.cards.length} cards Anki encontrados. Isso substituirá os dados atuais. Exporte um backup antes se quiser preservá-los.`, action: async () => {
         try {
-          const restored = window.desktop?.books ? validateData(await window.desktop.books.restore(imported._booksRestoreToken)) : imported;
+          const restored = prepareCurrentDay(window.desktop?.books ? validateData(await window.desktop.books.restore(imported._booksRestoreToken)) : imported);
           ankiDrafts.current.clear(); setAnkiRequest(null); setReminderEditor(null); setReminderAlarms([]); update(restored); setSettings(false);
           if (await persist(restored)) setToast('Backup restaurado.'); else setToast('Backup carregado, mas não foi possível salvar no computador. Exporte uma cópia antes de fechar.');
         } catch (error) { setToast(`Não foi possível restaurar: ${error.message}`); }
@@ -365,7 +366,7 @@ export default function App() {
       const wasDone = getRecord(s, date, planId, blockId).done;
       const next = setManualDone(s, date, planId, blockId, true);
       // A replay can already be marked done in the daily record.
-      return wasDone && next.active?.remainingMs === 0 ? prepareNextBlock(next, date, planId, blockId) : next;
+      return prepareCurrentDay(wasDone && next.active?.remainingMs === 0 ? prepareNextBlock(next, date, planId, blockId) : next);
     })}><CircleDashed size={16} /></IconButton>;
   const statusOf = (plan) => {
     if (plan.blocks.length && plan.blocks.every(b => getRecord(data, date, plan.id, b.id).done)) return 'done';

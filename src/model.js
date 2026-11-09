@@ -82,6 +82,14 @@ export function prepareNextBlock(state, date, planId, blockId, now = Date.now())
   }
   return state;
 }
+// Replace a stale paused selection without changing yesterday's records or starting today's timer.
+export function prepareCurrentDay(state, now = Date.now()) {
+  const today = dayKey(new Date(now));
+  if (!state.active || state.active.running || state.active.date >= today) return state;
+  const next = { ...state, active: null };
+  const first = dailySummary(state, today).plans.find(plan => plan.blocks.some(block => !getRecord(state, today, plan.id, block.id).done));
+  return first ? prepareNextBlock(next, today, first.id, null, now) : next;
+}
 // Accrue wall-clock time rather than counting interval ticks. Split sessions at local midnight.
 export function tick(state, now = Date.now()) {
   const active = state.active;

@@ -91,7 +91,7 @@ test('clock moving backwards cannot credit negative time', () => {
   assert.equal(focusMs(s, date, date), 0);
 });
 test('density preferences migrate without losing theme or sound', () => {
-  assert.deepEqual(preferences({ theme: 'light', sound: false }), { theme: 'light', sound: false, startWithWindows: true, creditManualTime: false, density: 'compact', plansView: 'cards', palette: 'pink' });
+  assert.deepEqual(preferences({ theme: 'light', sound: false }), { theme: 'light', sound: false, reminderSound: 'chime', startWithWindows: true, creditManualTime: false, density: 'compact', plansView: 'cards', palette: 'pink' });
   assert.equal(preferences({ density: 'minimal' }).density, 'minimal');
   assert.equal(preferences({ density: 'comfortable' }).density, 'comfortable');
   assert.equal(preferences({ density: 'invalid' }).density, 'compact');
