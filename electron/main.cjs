@@ -70,7 +70,7 @@ function trusted(event) { return win && event.sender === win.webContents; }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { win.restore(); win.show(); win.focus(); } });
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     const books = new BookFiles(app.getPath('userData'));
     let pendingBookRestore;
     try { compactBounds = JSON.parse(fs.readFileSync(windowStatePath(), 'utf8')).compactBounds; } catch {}
@@ -83,6 +83,16 @@ else {
     const installed = ['Uninstall Organon.exe', 'Uninstall Compasso.exe'].some(name => fs.existsSync(path.join(path.dirname(process.execPath), name)));
     startup = new WindowsStartup({ app, path: process.execPath, available: process.platform === 'win32' && app.isPackaged && installed && !isolated && !process.env.PORTABLE_EXECUTABLE_FILE });
     try { startup.sync(readData()?.settings); } catch { /* The renderer reports data errors without replacing the file. */ }
+    const updater = new AppUpdates({
+      version: app.getVersion(), cacheDir: path.join(app.getPath('userData'), 'updates'), fetchImpl: net.fetch.bind(net),
+      emit: status => { if (win && !win.isDestroyed()) win.webContents.send('updates:status', status); },
+      launchInstaller: file => new Promise((resolve, reject) => {
+        const child = spawn(file, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true });
+        child.once('error', reject); child.once('spawn', () => { child.unref(); resolve(); });
+      }),
+      onQuit: () => setTimeout(() => app.quit(), 100),
+    });
+    if (await updater.resumeScheduled()) return;
     const spellingEngine = process.platform === 'win32' ? new SpellingEngine({ directory: app.isPackaged ? path.join(process.resourcesPath, 'app.asar.unpacked/dist/spelling') : path.join(__dirname, '../dist/spelling') }) : null;
     win = new BrowserWindow({ width: 1260, height: 850, minWidth: 840, minHeight: 620, frame: false,
       backgroundColor: supportsGlass ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#101010' : '#f6f7f9', backgroundMaterial: supportsGlass ? 'acrylic' : 'none',
@@ -161,15 +171,6 @@ else {
     win.on('move', rememberCompact);
     win.on('resize', rememberCompact);
     win.on('close', () => { rememberCompact(); clearTimeout(windowSaveTimer); saveWindowState(); });
-    const updater = new AppUpdates({
-      version: app.getVersion(), cacheDir: path.join(app.getPath('userData'), 'updates'), fetchImpl: net.fetch.bind(net),
-      emit: status => { if (!win.isDestroyed()) win.webContents.send('updates:status', status); },
-      launchInstaller: file => new Promise((resolve, reject) => {
-        const child = spawn(file, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true });
-        child.once('error', reject); child.once('spawn', () => { child.unref(); resolve(); });
-      }),
-      onQuit: () => setTimeout(() => app.quit(), 100),
-    });
     ipcMain.handle('updates:status', e => { if (trusted(e)) return updater.state; });
     let startupCleanup;
     ipcMain.handle('updates:opened', e => {
@@ -183,6 +184,8 @@ else {
     ipcMain.handle('updates:check', e => { if (trusted(e)) return updater.check(); });
     ipcMain.handle('updates:download', e => { if (trusted(e)) return updater.download(); });
     ipcMain.handle('updates:install', e => { if (trusted(e)) return updater.install(); });
+    ipcMain.handle('updates:schedule', e => { if (trusted(e)) return updater.schedule(); });
+    ipcMain.handle('updates:cancel-schedule', e => { if (trusted(e)) return updater.cancelSchedule(); });
     powerMonitor.on('suspend', () => { if (!win.isDestroyed()) win.webContents.send('timer:suspend'); });
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', (event) => event.preventDefault());

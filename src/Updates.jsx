@@ -24,6 +24,12 @@ export function useAppUpdates(enabled) {
     check: async () => { if (window.desktop?.updates) setState(await window.desktop.updates.check()); },
     download: async () => { if (window.desktop?.updates) setState(await window.desktop.updates.download()); },
     install: async () => { if (window.desktop?.updates) setState(await window.desktop.updates.install()); },
+    schedule: async () => {
+      if (!window.desktop?.updates) return;
+      const value = await window.desktop.updates.schedule(); setState(value);
+      if (value.status === 'scheduled') setOpen(false);
+    },
+    cancelSchedule: async () => { if (window.desktop?.updates) setState(await window.desktop.updates.cancelSchedule()); },
   };
 }
 
@@ -34,20 +40,31 @@ const messages = {
   available: 'Há uma nova versão disponível.',
   downloading: 'Baixando a atualização…',
   ready: 'Atualização pronta para instalar.',
+  scheduled: 'Atualização agendada para a próxima abertura.',
   installing: 'Aplicando atualização… O app será reaberto.',
   error: 'Não foi possível verificar ou baixar agora. Tente novamente.',
 };
 export function UpdateSettings({ updates }) {
   const { state } = updates;
   const busy = ['checking', 'downloading', 'installing'].includes(state.status);
-  return <section className="update-settings"><div className="setting-row"><div><strong>Organon {state.currentVersion}</strong><p role="status">{state.message || messages[state.status]}</p></div>{['available', 'ready', 'downloading'].includes(state.status)
+  return <section className="update-settings"><div className="setting-row"><div><strong>Organon {state.currentVersion}</strong><p role="status">{state.message || messages[state.status]}</p></div>{['available', 'ready', 'scheduled', 'downloading'].includes(state.status)
     ? <button className="secondary" onClick={updates.show}>Ver atualização</button>
     : <button className="secondary" disabled={busy || !window.desktop} onClick={updates.check}><RefreshCw size={14} />{busy ? 'Verificando…' : 'Verificar atualização'}</button>}</div></section>;
 }
 
 export function UpdateDialog({ updates, onInstall, Modal }) {
   const { state, dismiss } = updates;
-  const ready = state.status === 'ready';
+  const scheduled = state.status === 'scheduled';
+  const ready = state.status === 'ready' || scheduled;
   const busy = ['downloading', 'installing'].includes(state.status);
-  return <Modal title={state.status === 'installing' ? 'Atualizando o Organon' : ready ? 'Pronto para atualizar' : 'Nova versão disponível'} subtitle={`Organon ${state.currentVersion} → ${state.version}`} onClose={dismiss} small><div className="update-body"><p>{state.status === 'error' ? state.message : state.status === 'installing' ? 'Aplicando a atualização em segundo plano. O aplicativo será reaberto ao terminar.' : ready ? 'O app será fechado por alguns instantes, atualizado em segundo plano e reaberto. Seus dados serão mantidos.' : busy ? 'Você pode continuar estudando enquanto o download termina.' : 'Deseja baixar e atualizar o aplicativo?'}</p>{busy && <><progress max="100" value={state.status === 'installing' ? undefined : state.percent || 0} /><span>{state.status === 'installing' ? 'Reiniciando…' : `${Math.round(state.percent || 0)}%`}</span></>}<div className="modal-actions">{state.status !== 'installing' && <button className="secondary" onClick={dismiss}>{busy ? 'Continuar estudando' : 'Depois'}</button>}{!busy && <button className="primary" onClick={ready ? onInstall : updates.download}><Download size={15} />{ready ? 'Atualizar e reiniciar' : 'Baixar atualização'}</button>}</div></div></Modal>;
+  return <Modal title={state.status === 'installing' ? 'Atualizando o Organon' : scheduled ? 'Atualização agendada' : ready ? 'Pronto para atualizar' : 'Nova versão disponível'} subtitle={`Organon ${state.currentVersion} → ${state.version}`} onClose={dismiss} small>
+    <div className="update-body"><p>{state.message || (state.status === 'installing' ? 'Aplicando a atualização em segundo plano. O aplicativo será reaberto ao terminar.' : scheduled ? 'Você pode continuar usando o app. A atualização será instalada na próxima vez que abrir o Organon. Seus dados serão mantidos.' : ready ? 'Atualize agora ou deixe a instalação para a próxima abertura do Organon. Seus dados serão mantidos.' : busy ? 'Você pode continuar estudando enquanto o download termina.' : 'Deseja baixar e atualizar o aplicativo?')}</p>
+      {busy && <><progress max="100" value={state.status === 'installing' ? undefined : state.percent || 0} /><span>{state.status === 'installing' ? 'Reiniciando…' : `${Math.round(state.percent || 0)}%`}</span></>}
+      <div className="modal-actions">
+        {state.status !== 'installing' && <button className="secondary" onClick={dismiss}>{busy ? 'Continuar estudando' : scheduled ? 'Continuar usando' : 'Depois'}</button>}
+        {!busy && ready && <button className="secondary" onClick={scheduled ? updates.cancelSchedule : updates.schedule}>{scheduled ? 'Cancelar agendamento' : 'Instalar na próxima abertura'}</button>}
+        {!busy && <button className="primary" onClick={ready ? onInstall : updates.download}><Download size={15} />{ready ? 'Atualizar e reiniciar' : 'Baixar atualização'}</button>}
+      </div>
+    </div>
+  </Modal>;
 }

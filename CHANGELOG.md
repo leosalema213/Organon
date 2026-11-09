@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.7.3
+
+- Agendar a instalação de uma atualização já baixada para a próxima abertura, mantendo o Organon aberto na sessão atual.
+- Consultar e cancelar o agendamento nas preferências ou optar pela atualização imediata.
+- Conferir novamente o instalador antes de aplicar e evitar repetição automática quando a instalação não concluir.
+
 ## 0.7.2
 
 - Oferecer sugestões de correção ortográfica no botão direito em cadernos, notas e demais campos editáveis, com ações de edição em português.

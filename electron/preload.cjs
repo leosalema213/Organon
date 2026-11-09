@@ -82,6 +82,8 @@ contextBridge.exposeInMainWorld('desktop', {
     check: () => ipcRenderer.invoke('updates:check'),
     download: () => ipcRenderer.invoke('updates:download'),
     install: () => ipcRenderer.invoke('updates:install'),
+    schedule: () => ipcRenderer.invoke('updates:schedule'),
+    cancelSchedule: () => ipcRenderer.invoke('updates:cancel-schedule'),
   },
   onUpdate: (callback) => {
     const handler = (event, status) => callback(status);
