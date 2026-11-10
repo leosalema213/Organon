@@ -2,9 +2,36 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { notebookLibrary, personalNotebookCopy, resourceShares, shareChanges, removeResourceShares } from '../src/shared-resources.js';
 import { newNotebook, seed, validateData } from '../src/model.js';
+import { mergeSharedNotebook } from '../src/shared-notebook-merge.js';
 
 const space = { id: 'team', owner_id: 'owner' };
 const row = (module, id, author = 'owner', hash) => ({ module, resource_id: id, published_by: author, revision: 2, content: { hash } });
+test('edição por pessoa afeta somente a seleção, preserva leitura e permite repetir só falhas', () => {
+  for (const module of ['books', 'notebooks']) {
+    const member = { user_id: 'one', selected: true, write: false };
+    const entries = new Map([['team', { rows: [row(module, 'a'), row(module, 'b')], audiences: { a: { members: [member] }, b: { members: [member] } } }]]);
+    const writes = { team: { one: true } };
+    const changes = shareChanges([space], entries, [{ id: 'a' }], {}, module, 'owner', {}, writes);
+    assert.deepEqual(changes.map(change => change.resource.id), ['a']);
+    assert.deepEqual(changes[0].recipientWrites, { one: true });
+    entries.get('team').audiences.a.members = [{ ...member, write: true }];
+    assert.deepEqual(shareChanges([space], entries, [{ id: 'a' }, { id: 'b' }], {}, module, 'owner', {}, writes).map(change => change.resource.id), ['b']);
+    assert.deepEqual(shareChanges([space], entries, [{ id: 'a' }], {}, module, 'owner', {}, { team: { one: false } })[0].recipientWrites, { one: false });
+    assert.deepEqual(shareChanges([space], entries, [{ id: 'b' }], {}, module, 'owner', { team: [] }, writes)[0].recipientIds, []);
+  }
+});
+test('edição simultânea combina páginas e campos independentes e preserva conflitos', () => {
+  const base = { id: 'n', name: 'Caderno', pages: [{ id: 'p', title: 'Antes', text: 'Original' }] };
+  const local = structuredClone(base), remote = structuredClone(base);
+  local.pages[0].title = 'Meu título'; remote.pages[0].text = 'Outra pessoa';
+  assert.deepEqual(mergeSharedNotebook(base, local, remote).pages[0], { id: 'p', title: 'Meu título', text: 'Outra pessoa' });
+  remote.pages.push({ id: 'new', title: 'Nova' }); local.pages.push({ id: 'mine', title: 'Minha' });
+  assert.deepEqual(mergeSharedNotebook(base, local, remote).pages.map(page => page.id), ['p', 'new', 'mine']);
+  remote.pages[0].title = 'Título concorrente';
+  assert.throws(() => mergeSharedNotebook(base, local, remote), /rascunho foi preservado/);
+  assert.equal(local.pages[0].title, 'Meu título');
+  assert.throws(() => mergeSharedNotebook(base, { ...base, pages: [] }, remote), /rascunho/);
+});
 test('deduplica livros por arquivo e cadernos por identidade, com autoria legada', () => {
   const rows = [row('books', 'b', 'owner', 'file'), row('books', 'c', 'guest', 'file'), row('notebooks', 'n')];
   assert.deepEqual(resourceShares(rows, 'books', { id: 'a', hash: 'file' }, 'owner'), { own: [rows[0]], other: true });

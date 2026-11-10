@@ -19,7 +19,7 @@ function BookCover({ book, small = false }) {
   return <div className={`journal-cover cover-${book.color.startsWith('#') ? 'custom' : book.color} ${small ? 'small-cover' : ''}`} style={customCoverStyle(book.color)}>{book.cover && <img src={book.cover} alt="" />}{Icon && <span><Icon size={small ? 18 : 30} strokeWidth={1.4} /></span>}</div>;
 }
 
-export default function Library({ notebooks, onChange, notify, saveError, Modal, Sketch, business, user, initialBookId = null, onBack, readOnly = false, sharedView = false, saveLabel }) {
+export default function Library({ notebooks, onChange, notify, saveError, Modal, Sketch, business, user, initialBookId = null, onBack, readOnly = false, sharedView = false, saveLabel, headerMark, headerActions }) {
   const [bookId, setBookId] = useState(initialBookId);
   const [pageId, setPageId] = useState(null);
   const [query, setQuery] = useState('');
@@ -54,6 +54,15 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
   async function saveBook(event, publish = false) {
     event.preventDefault(); if (readOnly || !draft.name.trim() || loadingCover) return;
     const value = { ...draft, name: draft.name.trim() };
+    if (!sharedView && business) {
+      try {
+        for (const copy of shared.notebooks.filter(item => item.id === value.id && item.publishedBy === user?.id)) {
+          const opened = await business.api.call('teams', 'openResource', { orgId: copy.orgId, module: 'notebooks', resourceId: copy.id });
+          await business.api.call('teams', 'editResource', { orgId: copy.orgId, module: 'notebooks', resourceId: copy.id, revision: opened.revision, content: { ...opened.content, name: value.name, icon: value.icon, color: value.color, cover: value.cover } });
+        }
+      } catch (error) { notify(`Não foi possível atualizar todos os compartilhamentos. Tente novamente. ${error.message}`); business.api.refresh(); return; }
+      business.api.refresh();
+    }
     const saved = await onChange(current => current.some(item => item.id === value.id) ? current.map(item => item.id === value.id ? { ...item, name: value.name, icon: value.icon, color: value.color, cover: value.cover } : item) : [...current, value], publish);
     if (saved === false) { notify('Não foi possível salvar o caderno. Tente novamente.'); return; }
     if (!notebooks.some(item => item.id === value.id)) openBook(value);
@@ -87,6 +96,14 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
       if (mounted.current) notify('Cópia salva nos seus cadernos.');
     } catch (error) { if (mounted.current) notify(`Não foi possível baixar a cópia. ${error.message}`); }
     finally { working.current = false; if (mounted.current) setCopying(false); }
+  }
+  async function recoverDraft(content) {
+    try {
+      const copy = { ...personalNotebookCopy(content), id: newNotebook().id, name: `${content.name} (rascunho)`, pages: content.pages.map(page => ({ ...page, id: newPage().id })) };
+      if (await onChange(current => [...current, copy], true) === false) throw new Error('Não foi possível salvar a cópia.');
+      notify('Rascunho salvo nos seus cadernos.');
+      return true;
+    } catch (error) { notify(error.message); return false; }
   }
   function notebookMenu(value) {
     if (!value.orgId) return [
@@ -125,9 +142,10 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
     } catch (error) { if (mounted.current) setDeleteError(`Não foi possível concluir a exclusão. Tente novamente. ${error.message}`); }
     finally { working.current = false; if (mounted.current) { setDeletingBusy(false); business?.api.refresh(); } }
   }
-  if (book?.orgId) return <SharedNotebookReader key={`${user?.id}:${book.orgId}:${book.id}`} notebook={book} api={business.api} onClose={() => setBookId(null)} onCopy={() => saveCopy(book)} copying={copying} notify={notify} Modal={Modal} Sketch={Sketch} Editor={Library} />;
+  const sharedBook = book?.orgId ? book : book && shared.notebooks.find(item => item.id === book.id && item.publishedBy === user?.id);
+  if (sharedBook) return <SharedNotebookReader key={`${user?.id}:${sharedBook.orgId}:${sharedBook.id}`} userId={user.id} notebook={sharedBook} api={business.api} onClose={() => setBookId(null)} onCopy={() => saveCopy(sharedBook)} onRecover={recoverDraft} onSynced={sharedBook.publishedBy === user?.id ? content => onChange(current => current.map(item => item.id === content.id ? personalNotebookCopy(content) : item)) : undefined} copying={copying} notify={notify} Modal={Modal} Sketch={Sketch} Editor={Library} />;
   return <div className="journal-area">
-    <div className="journal-heading">{book ? <>{!sharedView && <IconButton label="Todos os cadernos" onClick={onBack || (() => setBookId(null))}><ArrowLeft size={19} /></IconButton>}<BookCover book={book} small /><h1>{book.name}</h1>{!readOnly && <><IconButton label="Editar caderno" onClick={() => setDraft({ ...book })}><Pencil size={15} /></IconButton><button className="primary" onClick={addPage}><Plus size={16} />Nova página</button></>}</> : <><h1>Cadernos</h1><div className="button-row"><button className="primary" onClick={() => setDraft(newNotebook())}><Plus size={16} />Novo caderno</button>{business && <IconButton label="Compartilhar cadernos" disabled={!notebooks.length} onClick={() => share()}><Share2 size={15} /></IconButton>}</div></>}</div>
+    <div className="journal-heading">{book ? <><IconButton label="Todos os cadernos" onClick={onBack || (() => setBookId(null))}><ArrowLeft size={19} /></IconButton><BookCover book={book} small /><h1>{book.name}</h1>{headerMark}{!readOnly && <><IconButton label="Editar caderno" onClick={() => setDraft({ ...book })}><Pencil size={15} /></IconButton><button className="primary" onClick={addPage}><Plus size={16} />Nova página</button></>}{headerActions}</> : <><h1>Cadernos</h1><div className="button-row"><button className="primary" onClick={() => setDraft(newNotebook())}><Plus size={16} />Novo caderno</button>{business && <IconButton label="Compartilhar cadernos" disabled={!notebooks.length} onClick={() => share()}><Share2 size={15} /></IconButton>}</div></>}</div>
     {!book ? <>
       {shared.loading && <p role="status" className="muted">Buscando cadernos compartilhados…</p>}
       {shared.error && <p role="alert" className="form-error">Não foi possível consultar todos os espaços de cadernos compartilhados. <button className="secondary" onClick={shared.retry}>Tentar novamente</button></p>}
@@ -140,7 +158,7 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
       <section className="journal-document" aria-label="Página do caderno">{page ? <>
         <div className="journal-page-tools"><span className={saveError ? 'has-error' : ''}><Check size={12} />{saveError ? 'Falha ao salvar' : saveLabel || 'Salvo automaticamente'}</span>{!readOnly && <div><button className="notebook-tool" onClick={pickImage}><ImagePlus size={15} />Imagem</button><button className="notebook-tool" onClick={() => editor.current && setSketch({ editor: editor.current, token: editor.current.capture() })}><PenLine size={15} />Rabiscar</button></div>}</div>
         <div className="journal-sheet" ref={sheet}><div className="journal-paper"><time dateTime={page.date}>{new Date(`${page.date}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</time><input className="notebook-title" aria-label="Título da página" maxLength={160} placeholder="Sem título" value={page.title} disabled={readOnly} onChange={event => editPage(page.id, { title: event.target.value })} />
-          <Suspense fallback={<p className="muted">Abrindo página…</p>}><NoteEditor key={`${page.id}:${readOnly}`} note={page} ref={editor} rich disabled={readOnly} onChange={changes => editPage(page.id, changes)} notify={notify} /></Suspense>
+          <Suspense fallback={<p className="muted">Abrindo página…</p>}><NoteEditor key={`${page.id}:${readOnly}`} note={page} ref={editor} rich disabled={readOnly} syncExternal={sharedView} onChange={changes => editPage(page.id, changes)} notify={notify} /></Suspense>
         </div></div>
         <input ref={file} type="file" accept="image/png,image/jpeg,image/webp" hidden multiple onCancel={() => { const value = insertion.current; if (value) value.editor.cancel(value.token); insertion.current = null; }} onChange={event => { const value = insertion.current; if (value) value.editor.images([...event.target.files], value.token); insertion.current = null; event.target.value = ''; }} />
       </> : <div className="journal-empty"><FileText size={28} /><p>{readOnly ? 'Nenhuma página neste caderno.' : 'Comece uma nova página.'}</p>{!readOnly && <button className="secondary" onClick={addPage}><Plus size={15} />Nova página</button>}</div>}</section>

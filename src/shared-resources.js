@@ -13,10 +13,10 @@ export async function removeResourceShares(api, orgId, module, copies, active = 
   }
 }
 
-export function shareChanges(spaces, entries, resources, selected, module, userId, recipients = {}) {
+export function shareChanges(spaces, entries, resources, selected, module, userId, recipients = {}, writes = {}) {
   return spaces.flatMap(space => {
     const entry = entries?.get(space.id);
-    if (!entry || entry.error || (!Object.hasOwn(selected, space.id) && !Object.hasOwn(recipients, space.id))) return [];
+    if (!entry || entry.error || (!Object.hasOwn(selected, space.id) && !Object.hasOwn(recipients, space.id) && !Object.hasOwn(writes, space.id))) return [];
     return resources.flatMap(resource => {
       const shares = resourceShares(entry.rows, module, resource, userId, space.owner_id);
       const publish = selected[space.id] ?? true;
@@ -24,8 +24,10 @@ export function shareChanges(spaces, entries, resources, selected, module, userI
       const recipientIds = audience && Object.hasOwn(recipients, space.id)
         ? audience.members.filter(member => member.fixed || recipients[space.id] === null || recipients[space.id].includes(member.user_id)).map(member => member.user_id) : undefined;
       const audienceChanged = recipientIds && (audience.copies || [audience]).some(copy => copy.members.some(member => !!member.selected !== recipientIds.includes(member.user_id)));
-      return (publish ? !shares.other && (!shares.own.length || audienceChanged) : shares.own.length > 0)
-        ? [{ space, resource, own: shares.own, publish, ...(recipientIds ? { recipientIds } : {}) }] : [];
+      const recipientWrites = writes[space.id] || {};
+      const writesChanged = audience && (audience.copies || [audience]).some(copy => copy.members.some(member => !member.fixed && (recipientIds ? recipientIds.includes(member.user_id) : member.selected) && Object.hasOwn(recipientWrites, member.user_id) && recipientWrites[member.user_id] !== member.write));
+      return (publish ? !shares.other && (!shares.own.length || audienceChanged || writesChanged) : shares.own.length > 0)
+        ? [{ space, resource, own: shares.own, publish, recipientWrites, ...(recipientIds ? { recipientIds } : {}) }] : [];
     });
   });
 }

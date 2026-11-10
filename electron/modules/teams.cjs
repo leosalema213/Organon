@@ -14,7 +14,9 @@ function grants(value = {}) {
     if (ids.length > 500 || (g.mode === 'selected' && !ids.length)) throw new Error('Selecione os recursos.');
     const excludedIds = g.excludedIds === undefined ? [] : [...new Set(g.excludedIds.map(uuid))];
     if (excludedIds.length > 500 || (excludedIds.length && (!['books', 'notebooks'].includes(module) || g.mode !== 'all'))) throw new Error('Exceções de acesso inválidas.');
-    return [module, { mode: g.mode, ids, write: g.mode !== 'none' && g.write === true, ...(excludedIds.length ? { excludedIds } : {}) }];
+    const writeOverrides = g.writeOverrides;
+    if (writeOverrides !== undefined && (!['books', 'notebooks'].includes(module) || !writeOverrides || typeof writeOverrides !== 'object' || Array.isArray(writeOverrides) || Object.keys(writeOverrides).length > 500 || Object.entries(writeOverrides).some(([id, write]) => !UUID.test(id) || typeof write !== 'boolean'))) throw new Error('Exceções de edição inválidas.');
+    return [module, { mode: g.mode, ids, write: g.mode !== 'none' && g.write === true, ...(excludedIds.length ? { excludedIds } : {}), ...(writeOverrides ? { writeOverrides } : {}) }];
   }));
 }
 function createService({ cloud, realtimeClient, emit = () => {}, serializeResource, prepareAssets, getResourceCatalog, validateSharedResource, readData, readBook, kanbanCatalog } = {}) {
@@ -92,6 +94,11 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
       p.audienceToken = input.audienceToken;
     }
     if (action === 'setRecipients' && !p.recipientIds) throw new Error('Escolha os destinatários.');
+    if (['publish', 'setRecipients'].includes(action) && input.recipientWrites !== undefined) {
+      const writes = input.recipientWrites;
+      if (!p.recipientIds || !writes || typeof writes !== 'object' || Array.isArray(writes) || Object.keys(writes).length > 500 || Object.entries(writes).some(([id, write]) => !UUID.test(id) || !p.recipientIds.includes(id) || typeof write !== 'boolean')) throw new Error('Permissões dos destinatários inválidas.');
+      p.recipientWrites = writes;
+    }
     let result;
     try { result = await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: action, p_payload: p } }); }
     catch (error) {

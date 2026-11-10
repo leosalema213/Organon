@@ -1,5 +1,19 @@
 # Cadernos compartilhados e seleção em lote
 
+## Cabeçalho comum e edição automática — 10/11/2026, novo lote
+
+Atualização após preview.1: a instância de texto aberta aplica as revisões externas sem remontar a página ou emitir eco de salvamento. Uma consulta da revisão/permissão a cada 3 s recupera avisos perdidos. Recebimentos durante gravação são consultados novamente ao concluir. Quando houver rascunho, alterações independentes são combinadas antes de atualizar a tela; conflitos no mesmo conteúdo continuam preservados. A indicação discreta de editor recente depende do SQL `notebook-live.sql`, ainda não aplicado, e representa a última edição confirmada nos últimos 5 s. Ambos os computadores precisam da próxima versão do preview; cópias pessoais baixadas continuam independentes.
+
+O recebido usa o mesmo cabeçalho do pessoal: seta, capa/título, indicação discreta de compartilhamento e ações à direita. Quem pode editar vê o ícone Editar e Nova página; leitura mantém os campos desabilitados. Baixar cópia fica na mesma linha. Não há modo separado “Editar caderno compartilhado” nem botão para salvar o documento; a modal de nome/aparência mantém as ações normais do caderno.
+
+Alterações começam a ser enviadas em até 500 ms após a primeira edição pendente, mesmo em digitação contínua, com intervalo mínimo de 500 ms entre envios. Cada envio consulta autorização e revisão atuais, aguarda imagens e grava pela RPC existente. Digitação durante o envio continua na fila. Voltar e baixar cópia aguardam a gravação pendente; falha mantém o caderno aberto e oferece nova tentativa/recuperação do rascunho. O rascunho local por conta sobrevive a navegação e reinício; não equivale a publicação ou backup pessoal. Baixar cópia do rascunho cria outro caderno, com IDs novos, antes de recarregar o remoto.
+
+Invalidações de Equipes, foco e reconexão atualizam a leitura sem desmontar o editor. O autor também abre a publicação e recebe as revisões confirmadas no original pessoal. Edições independentes por campo/página são combinadas antes de enviar; alterações concorrentes no mesmo campo/documento ou exclusão de página alterada interrompem a gravação e preservam o rascunho. Conflitos de revisão durante o envio têm no máximo duas novas consultas/tentativas, sempre recalculando a combinação. Isso é atualização automática por revisão/Realtime existente; não é coedição de caracteres com cursores simultâneos. Revogação impede novos envios no servidor e mantém a recuperação local do trabalho ainda pendente.
+
+Na modal de compartilhamento, cada pessoa tem Pode ler/Pode editar. A escolha vale só para os recursos selecionados. Em lote com permissões diferentes aparece Varia por recurso; só uma escolha explícita uniformiza o acesso. Remarcar destinatários preserva a edição anterior quando não se escolhe outra opção. Rever permissões usa as mesmas exceções por recurso. Proprietário/autor continuam administrativos; livros usam o mesmo componente e contrato. Publicações em equipes diferentes continuam independentes, assim como cópias pessoais baixadas pelos destinatários.
+
+SQL adicional e testes estão preparados e pendentes, conforme DADOS-E-MIGRACOES.md. A validação remota do contrato anterior permanece válida para aquele contrato, sem validar automaticamente estas mudanças.
+
 ## Ajuste de destinatários — 10/11/2026
 
 Livros e cadernos usam o mesmo seletor: marcar equipe escolhe todos os membros aceitos atuais; os checkboxes permitem restringir pessoas. Reabrir mostra o acesso efetivo. Alterar os destinatários não reenvia o conteúdo, mas exige revisão e token atuais. O proprietário é indicado como acesso administrativo fixo. Equipes → Rever permissões consulta/edita as mesmas concessões; exceções ao escopo Todos preservam o acesso aos outros recursos e aos futuros. A aplicação remota desse contrato está pendente em DADOS-E-MIGRACOES.md.

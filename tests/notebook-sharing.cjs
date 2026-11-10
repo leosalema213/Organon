@@ -32,21 +32,23 @@ let app;
       if (action === 'inbox') return { notifications: [], invitations: [], unreadCount: 0 };
       if (action === 'shareRecipients') {
         const copy = state.rows.find(row => row.org_id === payload.orgId && row.module === payload.module && row.resource_id === payload.resourceId);
-        return { token: 'a'.repeat(32), members: [{ user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Destinatário', selected: !copy?.recipientIds || copy.recipientIds.includes('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') }], revision: copy?.revision || 0 };
+        return { permissionsVersion: 1, token: 'a'.repeat(32), members: [{ user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Destinatário', write: copy?.recipientWrites?.['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'] === true, selected: !copy?.recipientIds || copy.recipientIds.includes('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') }], revision: copy?.revision || 0 };
       }
       if (action === 'resources') return state.rows.filter(row => row.org_id === payload.orgId);
       const row = state.rows.find(row => row.org_id === payload.orgId && row.module === payload.module && row.resource_id === payload.resourceId);
+      if (action === 'resourceVersion') { if (!row) throw new Error('Acesso removido'); return { revision: row.revision, canWrite: row.published_by === user.id || row.content.name === 'Editável' }; }
+      if (action === 'roster') return [{ user_id: user.id, name: 'Autor' }, { user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Destinatário' }];
       if (action === 'resourceCover') { state.calls.push({ action, ...payload }); return { cover: received.find(item => item.id === payload.resourceId)?.cover || null }; }
-      if (action === 'openResource') { if (!row) throw new Error('Acesso removido'); return { ...row, content: row.content.cover?.bucket ? { ...row.content, cover: received.find(item => item.id === payload.resourceId).cover } : row.content, canWrite: row.content.name === 'Editável' }; }
+      if (action === 'openResource') { if (!row) throw new Error('Acesso removido'); return { ...row, content: row.content.cover?.bucket ? { ...row.content, cover: received.find(item => item.id === payload.resourceId).cover } : row.content, canWrite: row.published_by === user.id || row.content.name === 'Editável' }; }
       if (action === 'setRecipients') {
         if (!row || row.revision !== payload.revision) throw new Error('Conflito');
-        row.recipientIds = payload.recipientIds; row.revision++; state.calls.push({ action, ...payload }); invalidate(); return row;
+        row.recipientIds = payload.recipientIds; row.recipientWrites = { ...row.recipientWrites, ...payload.recipientWrites }; row.revision++; state.calls.push({ action, ...payload }); invalidate(); return row;
       }
       if (action === 'publish') {
         if (state.failPublish && payload.module === 'books' && payload.resourceId === books[1].id) { state.failPublish = false; throw new Error('Falha parcial de teste'); }
         if (row) throw new Error('Publicação duplicada');
         const content = payload.module === 'books' ? books.find(item => item.id === payload.resourceId) : personal.find(item => item.id === payload.resourceId);
-        state.rows.push({ org_id: payload.orgId, module: payload.module, resource_id: payload.resourceId, content, published_by: user.id, revision: 1, recipientIds: payload.recipientIds });
+        state.rows.push({ org_id: payload.orgId, module: payload.module, resource_id: payload.resourceId, content, published_by: user.id, revision: 1, recipientIds: payload.recipientIds, recipientWrites: payload.recipientWrites });
         state.calls.push({ action, ...payload }); invalidate(); return {};
       }
       if (action === 'unpublish') {
@@ -74,7 +76,9 @@ let app;
   await page.getByRole('dialog', { name: 'Editar caderno', exact: true }).getByRole('button', { name: 'Compartilhar caderno', exact: true }).click();
   let modal = page.getByRole('dialog', { name: 'Compartilhar caderno', exact: true });
   await modal.getByRole('checkbox', { name: 'Equipe 2', exact: true }).check();
+  await modal.getByRole('combobox', { name: 'Acesso de Destinatário em Equipe 2', exact: true }).selectOption('true');
   await modal.getByRole('button', { name: 'Compartilhar', exact: true }).click(); await modal.waitFor({ state: 'hidden' });
+  assert.deepEqual(await app.evaluate(() => globalThis.notebookSharing.calls.find(call => call.action === 'publish').recipientWrites), { 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb': true });
   await card('Pessoal um').getByRole('img', { name: 'Caderno compartilhado' }).waitFor();
   assert.equal(await card('Pessoal um').count(), 1);
   await card('Pessoal um').getByRole('button', { name: 'Editar caderno Pessoal um', exact: true }).click();
@@ -93,6 +97,15 @@ let app;
   await modal.getByRole('checkbox', { name: 'Equipe 1', exact: true }).check();
   await modal.getByRole('button', { name: 'Salvar alterações', exact: true }).click(); await modal.waitFor({ state: 'hidden' });
   await card('Pessoal dois').getByRole('img', { name: 'Caderno compartilhado' }).waitFor();
+  await card('Pessoal um').getByRole('button', { name: 'Abrir caderno Pessoal um', exact: true }).click();
+  await page.locator('.journal-shared-reader .journal-heading').waitFor();
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Alteração do autor');
+  await page.getByRole('button', { name: 'Todos os cadernos', exact: true }).click();
+  await card('Pessoal um').waitFor();
+  assert(await app.evaluate(() => globalThis.notebookSharing.rows.some(row => row.content.pages[0]?.title === 'Alteração do autor')));
+  await page.getByRole('button', { name: 'Abrir caderno Pessoal um', exact: true }).click();
+  assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).inputValue(), 'Alteração do autor');
+  await page.getByRole('button', { name: 'Todos os cadernos', exact: true }).click();
   await nav.getByRole('button', { name: 'Livros', exact: true }).click();
   await page.getByRole('button', { name: 'Compartilhar livros', exact: true }).click();
   modal = page.getByRole('dialog', { name: 'Compartilhar livros', exact: true });
@@ -111,18 +124,27 @@ let app;
   await page.locator('.journal-shared-reader .journal-layout').waitFor();
   assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).isDisabled(), true);
   assert.equal(await page.getByRole('button', { name: 'Editar caderno compartilhado', exact: true }).count(), 0);
+  assert.equal(await page.locator('.journal-heading').getByRole('button', { name: 'Todos os cadernos', exact: true }).count(), 1);
+  assert.equal(await page.locator('.journal-shared-toolbar').count(), 0);
   await page.getByRole('button', { name: 'Baixar cópia', exact: true }).click();
   await page.getByText('Cópia salva nos seus cadernos.', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Todos os cadernos', exact: true }).click();
   assert.equal(await card('Recebido').count(), 1);
   await card('Editável').getByRole('button', { name: 'Abrir caderno Editável', exact: true }).click();
-  await page.getByRole('button', { name: 'Editar caderno compartilhado', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Rascunho preservado');
+  await page.getByRole('button', { name: 'Editar caderno', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Nova página', exact: true }).first().waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Salvar alterações', exact: true }).count(), 0);
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Salvo sem botão');
+  await page.waitForFunction(() => document.querySelector('.journal-page-tools')?.textContent.includes('Salvo automaticamente'));
+  await app.evaluate(() => { const state = globalThis.notebookSharing; if (!state.rows.some(row => row.content.pages[0]?.title === 'Salvo sem botão')) throw new Error('Autosave ausente'); });
+  await app.evaluate(({ BrowserWindow }) => { const state = globalThis.notebookSharing; const row = state.rows.find(row => row.content.name === 'Editável'); row.content.pages[0].title = 'Mudança remota'; row.revision++; BrowserWindow.getAllWindows()[0].webContents.send('modules:changed', { module: 'teams', type: 'invalidate' }); });
+  await page.waitForFunction(() => document.querySelector('input[aria-label="Título da página"]')?.value === 'Mudança remota');
   await app.evaluate(() => { globalThis.notebookSharing.conflict = true; });
-  await page.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Rascunho preservado');
   await page.getByRole('alert').filter({ hasText: 'Este registro mudou' }).waitFor();
   assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).inputValue(), 'Rascunho preservado');
-  await page.getByRole('button', { name: 'Descartar alterações', exact: true }).click();
+  await page.getByRole('button', { name: 'Baixar cópia do rascunho', exact: true }).click();
+  await page.getByText('Rascunho salvo nos seus cadernos.', { exact: true }).waitFor();
   await page.locator('.journal-shared-reader .journal-layout').waitFor();
   await page.getByRole('button', { name: 'Todos os cadernos', exact: true }).first().click();
   await app.evaluate(({ BrowserWindow }) => {

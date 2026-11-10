@@ -12,7 +12,7 @@ const MODULES = new Set(['teams', 'kanban', 'financeiro', 'mei']);
 const OPTIONAL = new Set(['financeiro', 'mei']);
 const EVENT_TYPES = new Set(['changed', 'invalidate', 'resync', 'connection']);
 const CONNECTION_STATUSES = new Set(['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED', 'CONNECTING', 'UNAVAILABLE']);
-const TEAM_ACTIONS = new Set(['list', 'create', 'search', 'members', 'roster', 'invite', 'respond', 'permissions', 'revoke', 'notifications', 'inbox', 'read', 'readAll', 'deleteNotice', 'deleteAllNotices', 'catalog', 'resources', 'publish', 'unpublish', 'editResource', 'openResource', 'downloadBook', 'shareRecipients', 'setRecipients', 'resourceCover']);
+const TEAM_ACTIONS = new Set(['list', 'create', 'search', 'members', 'roster', 'invite', 'respond', 'permissions', 'revoke', 'notifications', 'inbox', 'read', 'readAll', 'deleteNotice', 'deleteAllNotices', 'catalog', 'resources', 'publish', 'unpublish', 'editResource', 'openResource', 'resourceVersion', 'downloadBook', 'shareRecipients', 'setRecipients', 'resourceCover']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HASH = /^[a-f0-9]{64}$/;
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -216,7 +216,7 @@ function createBusiness({ cloud, plugins, readData, books, emit = () => {}, crea
   }
   async function sharedRow(payload, epoch) {
     const scope = resourceScope(payload), token = await cloud.token(); assertSession(epoch);
-    const rows = await cloud.request(`/rest/v1/organon_shared_resources?org_id=eq.${scope.orgId}&module=eq.${scope.module}&resource_id=eq.${scope.resourceId}&select=org_id,module,resource_id,content,revision`, { token });
+    const rows = await cloud.request(`/rest/v1/organon_shared_resources?org_id=eq.${scope.orgId}&module=eq.${scope.module}&resource_id=eq.${scope.resourceId}&select=*`, { token });
     assertSession(epoch);
     if (!Array.isArray(rows) || rows.length !== 1 || rows[0].org_id !== scope.orgId || rows[0].module !== scope.module || rows[0].resource_id !== scope.resourceId || !rows[0].content || rows[0].content.id !== scope.resourceId || !Number.isSafeInteger(rows[0].revision) || rows[0].revision < 1 || Buffer.byteLength(JSON.stringify(rows[0].content)) > 8 * 1024 * 1024) throw new Error('Recurso indisponível ou sem permissão.');
     return { scope, row: rows[0] };
@@ -291,7 +291,14 @@ function createBusiness({ cloud, plugins, readData, books, emit = () => {}, crea
     if (OPTIONAL.has(module) && !await installed(module)) throw new Error('Instale este adicional em Preferências → Plugins.');
     assertSession(epoch);
     let result;
-    if (module === 'teams' && action === 'resourceCover') {
+    if (module === 'teams' && action === 'resourceVersion') {
+      const scope = resourceScope(payload), token = await cloud.token(); assertSession(epoch);
+      const rows = await cloud.request(`/rest/v1/organon_shared_resources?org_id=eq.${scope.orgId}&module=eq.${scope.module}&resource_id=eq.${scope.resourceId}&select=revision`, { token });
+      assertSession(epoch);
+      if (!Array.isArray(rows) || rows.length !== 1 || !Number.isSafeInteger(rows[0].revision) || rows[0].revision < 1) throw new Error('Recurso indisponível ou sem permissão.');
+      result = { revision: rows[0].revision, canWrite: await allowed(scope.orgId, scope.module, scope.resourceId, true, epoch) };
+    }
+    else if (module === 'teams' && action === 'resourceCover') {
       const { scope, row } = await sharedRow(payload, epoch);
       if (scope.module !== 'notebooks') throw new Error('Recurso inválido.');
       const reference = row.content.cover;

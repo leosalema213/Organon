@@ -12,6 +12,7 @@ function Choice({ mixed, ...props }) {
 export default function ShareResources({ api, spaces, userId, module, resources, single = false, onClose, notify }) {
   const [ids, setIds] = useState(single ? resources.map(item => item.id) : []);
   const [recipients, setRecipients] = useState({});
+  const [writes, setWrites] = useState({});
   const [selected, setSelected] = useState({}), [busy, setBusy] = useState(false), [errors, setErrors] = useState([]);
   const [catalog, setCatalog] = useState(null), [refresh, setRefresh] = useState(0);
   const mounted = useRef(false), working = useRef(false);
@@ -19,7 +20,7 @@ export default function ShareResources({ api, spaces, userId, module, resources,
   const chosen = resources.filter(item => ids.includes(item.id));
   const chosenIds = chosen.map(item => item.id).sort().join(',');
   const entries = catalog?.spaceIds === spaceIds && catalog.refresh === refresh && catalog.chosenIds === chosenIds ? catalog.entries : null;
-  const changes = shareChanges(spaces, entries, chosen, selected, module, userId, recipients);
+  const changes = shareChanges(spaces, entries, chosen, selected, module, userId, recipients, writes);
   const managing = entries && spaces.some(space => chosen.some(item => resourceShares(entries.get(space.id)?.rows || [], module, item, userId, space.owner_id).own.length));
   const noun = module === 'books' ? 'livro' : 'caderno', plural = module === 'books' ? 'livros' : 'cadernos';
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -58,7 +59,11 @@ export default function ShareResources({ api, spaces, userId, module, resources,
           const audience = entries.get(space.id).audiences[resource.id];
           for (const copy of audience.copies) {
             const recipientIds = change.recipientIds || copy.members.filter(member => member.selected).map(member => member.user_id);
-            await api.call('teams', own.length ? 'setRecipients' : 'publish', { orgId: space.id, module, resourceId: copy.resourceId, revision: copy.revision, recipientIds, audienceToken: copy.token });
+            const recipientWrites = Object.fromEntries(Object.entries(change.recipientWrites).filter(([id]) => recipientIds.includes(id) && !copy.members.find(member => member.user_id === id)?.fixed));
+            const changed = copy.members.some(member => !!member.selected !== recipientIds.includes(member.user_id) || Object.hasOwn(recipientWrites, member.user_id) && recipientWrites[member.user_id] !== member.write);
+            if (own.length && !changed) continue;
+            if (Object.keys(recipientWrites).length && copy.permissionsVersion !== 1) throw new Error('Atualize as permissões no servidor antes de salvar.');
+            await api.call('teams', own.length ? 'setRecipients' : 'publish', { orgId: space.id, module, resourceId: copy.resourceId, revision: copy.revision, recipientIds, audienceToken: copy.token, ...(Object.keys(recipientWrites).length ? { recipientWrites } : {}) });
           }
         }
         else await removeResourceShares(api, space.id, module, own, () => mounted.current);
@@ -77,8 +82,8 @@ export default function ShareResources({ api, spaces, userId, module, resources,
     <form className="teams-form" onSubmit={save} aria-busy={busy || !!spaceIds && !entries}>
       {!single && <fieldset className="teams-resource-options" disabled={busy}>
         <legend>Selecionar {plural}</legend>
-        <label className="teams-check"><Choice mixed={chosen.length > 0 && chosen.length < resources.length} checked={!!resources.length && chosen.length === resources.length} onChange={event => { setIds(event.target.checked ? resources.map(item => item.id) : []); setSelected({}); setRecipients({}); }} />Todos os {plural}</label>
-        {resources.map(item => <label className="teams-check" key={item.id}><input type="checkbox" checked={ids.includes(item.id)} onChange={event => { setIds(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id)); setSelected({}); setRecipients({}); }} />{item.title || item.name}</label>)}
+        <label className="teams-check"><Choice mixed={chosen.length > 0 && chosen.length < resources.length} checked={!!resources.length && chosen.length === resources.length} onChange={event => { setIds(event.target.checked ? resources.map(item => item.id) : []); setSelected({}); setRecipients({}); setWrites({}); }} />Todos os {plural}</label>
+        {resources.map(item => <label className="teams-check" key={item.id}><input type="checkbox" checked={ids.includes(item.id)} onChange={event => { setIds(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id)); setSelected({}); setRecipients({}); setWrites({}); }} />{item.title || item.name}</label>)}
         {!resources.length && <p>Nenhum {noun} pessoal disponível. Salve uma cópia dos recebidos para compartilhar.</p>}
       </fieldset>}
       {spaces.length ? <>
@@ -102,10 +107,16 @@ export default function ShareResources({ api, spaces, userId, module, resources,
                 {members.map(member => {
                   const values = audiences.map(audience => audience.members.find(item => item.user_id === member.user_id)).filter(Boolean);
                   const checked = member.fixed || (Object.hasOwn(recipients, space.id) ? recipients[space.id] === null || recipients[space.id].includes(member.user_id) : values.every(item => item.selected));
-                  return <label className="teams-check" key={member.user_id}><Choice checked={checked} mixed={!Object.hasOwn(recipients, space.id) && !checked && values.some(item => item.selected)} disabled={member.fixed} onChange={event => setRecipients(current => {
+                  const writeValues = [...new Set(values.map(item => item.write === true))];
+                  const write = Object.hasOwn(writes[space.id] || {}, member.user_id) ? String(writes[space.id][member.user_id]) : writeValues.length === 1 ? String(writeValues[0]) : '';
+                  return <div className="share-recipient-row" key={member.user_id}><label className="teams-check"><Choice checked={checked} mixed={!Object.hasOwn(recipients, space.id) && !checked && values.some(item => item.selected)} disabled={member.fixed} onChange={event => setRecipients(current => {
                     const previous = Object.hasOwn(current, space.id) ? current[space.id] === null ? members.map(item => item.user_id) : current[space.id] : members.filter(item => audiences.some(audience => audience.members.some(value => value.user_id === item.user_id && value.selected))).map(item => item.user_id);
                     return { ...current, [space.id]: event.target.checked ? [...new Set([...previous, member.user_id])] : previous.filter(id => id !== member.user_id) };
-                  })} />{member.name || member.nickname || 'Membro da equipe'}{member.fixed && ' (proprietário)'}</label>;
+                  })} />{member.name || member.nickname || 'Membro da equipe'}{member.fixed && ' (proprietário)'}</label>
+                    {!member.fixed && <select aria-label={`Acesso de ${member.name || member.nickname || 'Membro da equipe'} em ${space.name}`} value={write} disabled={!checked || audiences.some(audience => audience.permissionsVersion !== 1)} onChange={event => setWrites(current => ({ ...current, [space.id]: { ...current[space.id], [member.user_id]: event.target.value === 'true' } }))}>
+                      {write === '' && <option value="" disabled>Varia por recurso</option>}<option value="false">Pode ler</option><option value="true">Pode editar</option>
+                    </select>}
+                  </div>;
                 })}
                 {!members.length && <small>Nenhum outro membro aceito nesta equipe.</small>}
               </div>}
@@ -113,7 +124,7 @@ export default function ShareResources({ api, spaces, userId, module, resources,
           })}
         </fieldset>}
         {entries && [...entries.values()].some(entry => entry.error) && <button className="secondary" type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>Consultar novamente</button>}
-        <small>Para ajustar o acesso de uma pessoa, use Equipes → Rever permissões.</small>
+        {entries && [...entries.values()].some(entry => Object.values(entry.audiences || {}).some(audience => audience?.copies.some(copy => copy.permissionsVersion !== 1))) && <small>Edição por recurso depende da atualização do servidor.</small>}
       </> : <p>Crie um espaço em Equipes ou aceite um convite para compartilhar {plural}.</p>}
       {!!errors.length && <ul role="alert" className="teams-error">{errors.map((error, index) => <li key={index}>{error}</li>)}</ul>}
       <div className="modal-actions"><button className="secondary" type="button" disabled={busy} onClick={onClose}>Cancelar</button><button className="primary" type="submit" disabled={busy || !changes.length}>{busy ? 'Salvando…' : managing ? 'Salvar alterações' : 'Compartilhar'}</button></div>

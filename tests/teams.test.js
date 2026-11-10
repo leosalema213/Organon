@@ -40,6 +40,19 @@ test('resource audience uses a closed payload and validates recipients and exclu
   assert.deepEqual(grants({ books: { mode: 'all', excludedIds: [recipientId] } }).books.excludedIds, [recipientId]);
   assert.throws(() => grants({ notebooks: { mode: 'selected', ids: [orgId], excludedIds: [recipientId] } }), /Exceções/);
 });
+test('resource write overrides survive permission review and transport cannot grant to outsiders', async () => {
+  const { service, calls } = setup();
+  const permission = { mode: 'all', ids: [], write: true, writeOverrides: { [orgId]: false, [recipientId]: true } };
+  assert.deepEqual(grants({ notebooks: permission }).notebooks, permission);
+  assert.throws(() => grants({ notebooks: { ...permission, writeOverrides: { invalid: true } } }), /edição/);
+  assert.throws(() => grants({ books: { ...permission, writeOverrides: { [orgId]: 'true' } } }), /edição/);
+  assert.throws(() => grants({ kanban: permission }), /edição/);
+  const payload = { orgId, module: 'notebooks', resourceId: orgId, revision: 1, recipientIds: [recipientId], audienceToken: 'a'.repeat(32), recipientWrites: { [recipientId]: false } };
+  await service.dispatch('setRecipients', payload);
+  assert.deepEqual(calls[0].body.p_payload.recipientWrites, { [recipientId]: false });
+  await assert.rejects(service.dispatch('setRecipients', { ...payload, recipientWrites: { [orgId]: true } }), /Permissões/);
+  await assert.rejects(service.dispatch('setRecipients', { ...payload, recipientWrites: { [recipientId]: 'false' } }), /Permissões/);
+});
 test('inbox actions discard renderer ownership and do not mutate memberships', async () => {
   const { service, calls, events } = setup();
   for (const action of ['inbox', 'readAll', 'deleteAllNotices']) await service.dispatch(action, { user_id: recipientId, orgId, id: recipientId });

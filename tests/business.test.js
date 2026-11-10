@@ -80,6 +80,15 @@ test('business router rejects arbitrary endpoints and optional modules before in
   h.installed.add('financeiro'); assert.deepEqual(await business.dispatch('financeiro', 'snapshot', { orgId: ORG }), { entries: [], types: [], canWrite: true });
   h.installed.delete('financeiro'); await assert.rejects(business.dispatch('financeiro', 'snapshot', { orgId: ORG }), /Instale/);
 });
+test('consulta leve da revisão revalida acesso e não entrega conteúdo ou identidade do renderer', async t => {
+  const h = harness(t), business = h.create();
+  h.server.resource = { org_id: ORG, module: 'notebooks', resource_id: RESOURCE, revision: 4, content: { private: true } };
+  assert.deepEqual(await business.dispatch('teams', 'resourceVersion', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE, userId: OTHER }), { revision: 4, canWrite: true });
+  assert(h.requests.some(request => request.endpoint.endsWith('&select=revision')));
+  h.server.permission = false;
+  await assert.rejects(business.dispatch('teams', 'resourceVersion', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE }), /sem permissão/);
+  await assert.rejects(business.dispatch('teams', 'resourceVersion', { orgId: ORG, module: 'notebooks', resourceId: 'invalid' }), /Identificador/);
+});
 
 test('busy status does not reopen realtime; private channels emit only sanitized invalidations and resync', async t => {
   const h = harness(t), business = h.create(); h.installed.add('financeiro');

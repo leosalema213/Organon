@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.7.6
+
+- Atualizar texto e imagens na página compartilhada já aberta, enviar alterações durante digitação contínua e recuperar avisos perdidos por consulta de revisão.
+- Preparar indicação discreta de quem editou recentemente, com autoria confirmada pelo servidor e sem notificações repetidas a cada salvamento; depende do SQL adicional.
+
+- Usar o cabeçalho do caderno pessoal também nos compartilhados, com edição por ícone, nova página e baixar cópia na mesma linha.
+- Salvar alterações compartilhadas automaticamente e receber atualizações remotas, preservando rascunhos em conflitos e falhas de conexão.
+- Preparar leitura ou edição por destinatário apenas para os livros/cadernos selecionados, com as mesmas permissões na revisão da equipe. A escolha depende da aplicação do SQL adicional no servidor.
+
 ## 0.7.5
 
 - Abrir ou trazer o aplicativo para frente ao clicar na notificação de conclusão.

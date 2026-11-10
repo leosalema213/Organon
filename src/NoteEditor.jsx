@@ -9,6 +9,7 @@ import { Selection, TextSelection } from '@tiptap/pm/state';
 import { documentText, isNoteImage, noteDocument } from './note-document.js';
 import { FormatToolbar, formatState, richExtensions } from './RichText.jsx';
 import { optimizeImage } from './images.js';
+import { remoteNoteTransaction } from './note-live.js';
 
 const Image = Node.create({
   name: 'image', group: 'block', atom: true, draggable: true,
@@ -35,13 +36,15 @@ const Image = Node.create({
 });
 
 // One editor per note: its history and selection survive React autosave renders.
-export default forwardRef(function NoteEditor({ note, onChange, notify, rich = true, disabled = false }, apiRef) {
+export default forwardRef(function NoteEditor({ note, onChange, notify, rich = true, disabled = false, syncExternal = false }, apiRef) {
   const host = useRef();
   const instance = useRef();
+  const handlers = useRef();
   const [format, setFormat] = useState({});
   useLayoutEffect(() => {
     const bookmarks = new Set();
     let pending = 0; let detached = false;
+    const callbacks = { onChange, notify }; handlers.current = callbacks;
     const editor = new Editor({
       element: host.current,
       editable: !disabled,
@@ -71,7 +74,7 @@ export default forwardRef(function NoteEditor({ note, onChange, notify, rich = t
       },
       onUpdate: ({ editor }) => {
         editor.view.dom.dataset.empty = String(editor.isEmpty);
-        const document = editor.getJSON(); onChange({ document, text: documentText(document), images: [] });
+        const document = editor.getJSON(); callbacks.onChange({ document, text: documentText(document), images: [] });
       },
     });
     const capture = () => {
@@ -134,11 +137,23 @@ export default forwardRef(function NoteEditor({ note, onChange, notify, rich = t
     return () => {
       if (apiRef.current === api) apiRef.current = null;
       instance.current = null;
+      if (handlers.current === callbacks) handlers.current = null;
       detached = true;
       // Finish an in-flight paste against the original note even after switching notes.
       if (!pending) editor.destroy();
     };
   }, [note.id, rich]);
+  useLayoutEffect(() => { if (handlers.current) { handlers.current.onChange = onChange; handlers.current.notify = notify; } });
+  useLayoutEffect(() => {
+    const editor = instance.current;
+    if (!syncExternal || !editor || editor.isDestroyed) return;
+    const next = editor.schema.nodeFromJSON(noteDocument(note));
+    const transaction = remoteNoteTransaction(editor.state, next);
+    if (!transaction) return;
+    // Map selections, image bookmarks and local history through the smallest remote patch.
+    editor.view.dispatch(transaction);
+    editor.view.dom.dataset.empty = String(editor.isEmpty);
+  }, [note, syncExternal]);
   useLayoutEffect(() => { instance.current?.setEditable(!disabled, false); host.current?.querySelectorAll('.note-document-image button').forEach(button => { button.hidden = disabled; }); }, [disabled]);
   return <>{rich && !disabled && <FormatToolbar editor={instance.current} state={format} />}<div className="note-document-editor" ref={host} /></>;
 });

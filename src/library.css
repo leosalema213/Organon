@@ -4,6 +4,8 @@
 .journal-heading { display:flex;align-items:center;gap:10px;margin-bottom:18px;min-height:36px; }
 .journal-heading { flex-wrap:wrap; }
 .journal-heading .button-row { flex-wrap:wrap; }
+.journal-shared-reader .journal-heading{flex-wrap:nowrap}.journal-shared-reader .journal-heading h1{flex:1 1 0;min-width:0}.journal-shared-reader .journal-heading>button{flex-shrink:0}.journal-shared-indicator{display:inline-flex;color:var(--journal-muted)}
+.journal-live-editor{font-size:var(--control-font);color:var(--journal-muted);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.journal-live-editor:empty{display:none}
 .journal-card>.journal-options { position:absolute;right:10px;bottom:16px; }
 .journal-shared-mark { position:absolute;top:9px;right:9px;display:grid;place-items:center;padding:5px;border-radius:6px;background:var(--journal-panel);color:var(--journal-muted); }
 .journal-shared-toolbar { display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px; }
