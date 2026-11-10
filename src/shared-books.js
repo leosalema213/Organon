@@ -1,21 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { validBooks } from './books.js';
+import { resourceShares, removeResourceShares } from './shared-resources.js';
 
 const progressFields = ['page', 'pageCount', 'furthestPage', 'location', 'fraction', 'furthestFraction', 'view', 'completedAt'];
 const progressKey = (userId, book) => `organon.shared-reading.v1:${userId}:${book.orgId}:${book.id}:${book.hash}`;
 
 export async function findBookShares(api, space, book, userId) {
   const rows = await api.call('teams', 'resources', { orgId: space.id });
-  const copies = rows.filter(row => row.module === 'books' && (row.resource_id === book.id || row.content?.hash === book.hash));
-  const own = copies.filter(row => (row.published_by || space.owner_id) === userId);
-  return { own, other: copies.length > own.length };
+  return resourceShares(rows, 'books', book, userId, space.owner_id);
 }
 
 export async function removeBookShares(api, orgId, copies, active) {
-  for (const copy of copies) {
-    if (!active()) return;
-    await api.call('teams', 'unpublish', { orgId, module: 'books', resourceId: copy.resource_id, revision: copy.revision });
-  }
+  return removeResourceShares(api, orgId, 'books', copies, active);
 }
 
 export function personalBookCopy(book) {

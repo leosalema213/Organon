@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.7.4
+
+- Reunir cadernos pessoais e recebidos na mesma biblioteca, com indicador de compartilhado e sem duplicação entre espaços.
+- Compartilhar e retirar cadernos pelo editor, além de selecionar itens individuais ou todos nos novos botões de Livros e Cadernos.
+- Salvar uma cópia pessoal independente e retirar publicações próprias antes de excluir o original, com nova tentativa em caso de falha parcial.
+- Abrir cadernos pelas notificações na biblioteca unificada e preservar rascunhos em conflitos de edição compartilhada.
+
 ## 0.7.3
 
 - Agendar a instalação de uma atualização já baixada para a próxima abertura, mantendo o Organon aberto na sessão atual.
