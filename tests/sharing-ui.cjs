@@ -47,6 +47,7 @@ let app;
         if (action === 'inbox') return { notifications: [], invitations: [], unreadCount: 0 };
         if (action === 'roster') return [{ id: 'member', user_id: guest.id, name: guest.name, status: 'accepted', role: 'member', revision: 1, grants: state.grants }];
         if (action === 'catalog') return { books: [{ id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', name: 'Livro pessoal para publicar' }, { id: '99999999-9999-4999-8999-999999999999', name: 'Livro sem publicação' }], notebooks: [] };
+        if (action === 'shareRecipients') return { token: 'a'.repeat(32), members: [{ user_id: guest.id, name: guest.name, selected: true }], revision: 0 };
         if (action === 'resources') return state.resources.filter(row => row.org_id === payload.orgId);
         if (action === 'permissions') { state.grants = payload.grants; return {}; }
         if (action === 'downloadBook') {

@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.7.5
+
+- Abrir ou trazer o aplicativo para frente ao clicar na notificação de conclusão.
+- Escolher o som de conclusão nas preferências, com catálogo compartilhado com Notas e seis novas opções curtas e longas.
+
+- Compartilhar livros e cadernos com todos os membros atuais ou com pessoas selecionadas, mantendo as permissões da equipe consistentes.
+- Exibir a capa privada do caderno na biblioteca sem baixar todas as imagens das páginas.
+- Mover o compartilhamento para o cabeçalho da edição do caderno e simplificar as ações para Cancelar e Salvar.
+
 ## 0.7.4
 
 - Reunir cadernos pessoais e recebidos na mesma biblioteca, com indicador de compartilhado e sem duplicação entre espaços.

@@ -6,7 +6,7 @@ import { preferences, seed, validateData } from '../src/model.js';
 import { newReminder } from '../src/reminders.js';
 const require = createRequire(import.meta.url);
 const { WindowsStartup } = require('../electron/startup.cjs');
-const { ReminderNotifications, eligibleReminders, openRemindersWindow } = require('../electron/reminder-notifications.cjs');
+const { ReminderNotifications, eligibleReminders, openRemindersWindow, showCompletionNotification } = require('../electron/reminder-notifications.cjs');
 const today = '2026-10-27';
 function startupFixture(available = true) {
   const calls = []; let current = { openAtLogin: false, executableWillLaunchAtLogin: false };
@@ -115,4 +115,17 @@ test('notification preference is optional in old backups and preserved in new on
   assert.deepEqual(validateData(JSON.parse(JSON.stringify(state))).reminders, state.reminders);
   assert.equal(validateData(state).settings.startWithWindows, false);
   assert.throws(() => validateData({ ...state, reminders: [{ ...old, notifyOnStartup: 'yes' }] }));
+});
+
+test('completion click restores and focuses the app without changing the page or timer', () => {
+  const calls = [];
+  class Notification extends EventEmitter { static isSupported() { return true; } constructor(options) { super(); this.options = options; } show() { calls.push('notification'); } }
+  let destroyed = false;
+  const win = { isDestroyed: () => destroyed, isMinimized: () => true, restore: () => calls.push('restore'), show: () => calls.push('show'), focus: () => calls.push('focus'), webContents: { send: () => { throw new Error('Must not navigate'); } } };
+  const notification = showCompletionNotification({ Notification, win, body: 'Aula concluída' });
+  assert.equal(notification.options.silent, true);
+  notification.emit('click'); assert.deepEqual(calls, ['notification', 'restore', 'show', 'focus']);
+  destroyed = true; notification.emit('click'); assert.equal(calls.length, 4);
+  notification.emit('close');
+  assert.equal(showCompletionNotification({ Notification: { isSupported: () => false }, win, body: '' }), null);
 });

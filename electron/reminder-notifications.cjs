@@ -29,9 +29,25 @@ class ReminderNotifications {
     } catch { return { shown: false, count, reason: 'notification-unavailable' }; }
   }
 }
-function openRemindersWindow(win) {
-  if (win.isDestroyed()) return;
+function openAppWindow(win) {
+  if (win.isDestroyed()) return false;
   if (win.isMinimized()) win.restore();
-  win.show(); win.focus(); win.webContents.send('reminders:open');
+  win.show(); win.focus(); return true;
 }
-module.exports = { ReminderNotifications, eligibleReminders, localDay, openRemindersWindow };
+function openRemindersWindow(win) {
+  if (openAppWindow(win)) win.webContents.send('reminders:open');
+}
+const completionNotices = new Set();
+function showCompletionNotification({ Notification, win, body }) {
+  if (!Notification.isSupported()) return null;
+  let notification;
+  try {
+    notification = new Notification({ title: 'Organon · Bloco concluído', body: String(body).slice(0, 300), silent: true });
+    notification.on('click', () => openAppWindow(win));
+    notification.on('close', () => completionNotices.delete(notification));
+    notification.on('failed', () => completionNotices.delete(notification));
+    completionNotices.add(notification);
+    notification.show(); return notification;
+  } catch { completionNotices.delete(notification); return null; }
+}
+module.exports = { ReminderNotifications, eligibleReminders, localDay, openAppWindow, openRemindersWindow, showCompletionNotification };

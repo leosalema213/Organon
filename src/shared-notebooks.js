@@ -9,14 +9,31 @@ export function useSharedNotebooks(api, userId, spaces = []) {
   useEffect(() => {
     if (!api || !userId || !spaceIds) return;
     let sequence = 0;
+    const covers = new Map();
     async function refresh() {
       const current = ++sequence;
       const results = await Promise.allSettled(spaceIds.split(',').map(async orgId => {
         const rows = await api.call('teams', 'resources', { orgId });
-        return rows.filter(row => row.module === 'notebooks' && row.content?.id === row.resource_id && typeof row.content.name === 'string' && Array.isArray(row.content.pages)).map(row => ({
-          ...row.content, cover: isNoteImage(row.content.cover) ? row.content.cover : null,
-          color: isNotebookColor(row.content.color) ? row.content.color : 'violet', icon: notebookIcons.includes(row.content.icon) ? row.content.icon : 'book',
-          orgId, revision: row.revision, publishedBy: row.published_by || spaces.find(space => space.id === orgId)?.owner_id,
+        return Promise.all(rows.filter(row => row.module === 'notebooks' && row.content?.id === row.resource_id && typeof row.content.name === 'string' && Array.isArray(row.content.pages)).map(async row => {
+          let cover = isNoteImage(row.content.cover) ? row.content.cover : null;
+          if (!cover && row.content.cover) {
+            try {
+              const key = `${orgId}:${row.resource_id}:${row.revision}`;
+              if (!covers.has(key)) {
+                if (covers.size >= 64) covers.delete(covers.keys().next().value);
+                const pending = api.call('teams', 'resourceCover', { orgId, module: 'notebooks', resourceId: row.resource_id });
+                covers.set(key, pending);
+                pending.catch(() => covers.delete(key));
+              }
+              const opened = await covers.get(key);
+              if (isNoteImage(opened.cover)) cover = opened.cover;
+            } catch { /* Keep the notebook visible if its cover cannot be loaded. */ }
+          }
+          return {
+            ...row.content, cover,
+            color: isNotebookColor(row.content.color) ? row.content.color : 'violet', icon: notebookIcons.includes(row.content.icon) ? row.content.icon : 'book',
+            orgId, revision: row.revision, publishedBy: row.published_by || spaces.find(space => space.id === orgId)?.owner_id,
+          };
         }));
       }));
       if (current !== sequence) return;

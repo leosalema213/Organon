@@ -2,6 +2,29 @@
 
 Não comitar nem publicar este lote até o usuário encerrar os pedidos e confirmar a publicação, conforme AGENTS.md.
 
+## Lote 0.7.5 — preview autorizado em 10/11/2026
+
+- [x] Validação local recebida: testes de compartilhamento, sons/modelo/alarmes, builds e interfaces focadas aprovados. Falha simulada do Livro 2 recuperada sem duplicar o Livro 1.
+- [x] Encerramento dos ajustes e geração do preview autorizados. `0.7.5-preview.1` gerado; manifesto de 228 arquivos verificado por tamanho/SHA-256 e executável empacotado aberto em perfil temporário sem falhas de carregamento/JavaScript. Limpeza manteve o preview atual e a estável 0.7.4.
+- [x] SQL remoto aplicado com aprovação explícita: migration `sharing_recipients_atomic` no Organon. Casos sintéticos passaram dentro da transação; savepoint descartou os fixtures antes do COMMIT. RPC conectada e zero usuários/equipes sintéticos remanescentes conferidos.
+- [x] Usuário aprovou o preview e autorizou subir. A correção da capa consulta a publicação existente, sem exigir novo compartilhamento; cópia pessoal já era salva com imagens resolvidas.
+- [x] Usuário autorizou promoção/publicação após o preview e aprovou explicitamente a alteração remota das regras de acesso.
+
+Publicação da 0.7.5 autorizada pelo usuário após o preview. Migração remota `sharing_recipients_atomic` bloqueada pela revisão automática por exigir aprovação explícita para alterar funções e autorização no banco de produção. Nenhum SQL da migração foi executado. Preparação local da estável em andamento; publicação aguardando resolver essa pendência.
+
+Estável 0.7.5 preparada: instalador gerado, 228 arquivos verificados no ASAR por tamanho/SHA-256, checksums gerados e executável real aberto em perfil temporário sem erros. Retenção local: 0.7.5 e 0.7.5-preview.1. Commit/push/Release aguardam a liberação e validação da migração remota.
+
+Bloqueio remoto resolvido após aprovação explícita: migração aplicada e validada, sem fixtures remanescentes. Publicação da estável em andamento.
+
+## Compartilhamento unificado de cadernos e seleção em lote — 09/11/2026
+
+- [x] Implementar a biblioteca única de cadernos pessoais e recebidos, sem duplicação por espaço, com indicador de compartilhado e cópia pessoal independente.
+- [x] Implementar compartilhamento/descompartilhamento pelo editor do caderno e por seleção individual ou de todos nos cabeçalhos de Livros e Cadernos; preservar autoria, revisão e novas tentativas após falhas parciais.
+- [x] Remover o acesso separado a Cadernos compartilhados; notificações abrem a biblioteca unificada. Manter edição compartilhada explícita com revisão e rascunho preservado em conflito.
+- [x] Validação enviada pelo usuário em 09/11/2026: 21 testes focados (`shared-resources.test.js`, `library.test.js`, `teams.test.js`), build e os três testes de interface (`library.cjs`, `sharing-ui.cjs`, `notebook-sharing.cjs`) aprovados. Avisos de tamanho de chunks/import dinâmico não impediram o build. Servidor/Realtime reais entre contas continuam sem nova validação deste lote.
+- [x] Usuário autorizou gerar a prévia em 09/11/2026. Instalador 0.7.4-preview.1 gerado, 228 arquivos do ASAR conferidos por tamanho/SHA-256, checksum do instalador validado e executável real aberto em perfil temporário sem erros. Limpeza oficial manteve 0.7.4-preview.1 e 0.7.3.
+- [x] Preview validado e publicação autorizada pelo usuário. Versão 0.7.4 publicada em 10/11/2026 nos canais Organon e legado, commit `c20b8d1`. Registro atualizado após localizar o chat original e concluir a publicação interrompida.
+
 - [x] Trocar o ícone de maximizar da janela principal pelo quadrado padrão do Windows.
 - [x] Reduzir o botão do modo compacto a um ícone de 30 × 30 px, com tooltip, no player atual.
 - [x] Fixar a janela compacta em 340 × 112 px, sem redimensionamento; manter movimentação e posição salva.
@@ -40,6 +63,11 @@ Não comitar nem publicar este lote até o usuário encerrar os pedidos e confir
 ## Ideias e correções futuras
 
 Registro para acumular pedidos; implementar somente quando o usuário solicitar. Manter os itens em checklist e marcar como concluídos apenas após implementar e validar.
+
+Validação local do lote 0.7.5 recebida: 44 testes/build e interfaces `notification-sounds.cjs`/`notebook-sharing.cjs` aprovados; recuperação da falha simulada do Livro 2 sem duplicação confirmada. Os dois itens abaixo permanecem abertos somente para a conferência nativa/audível no preview. Preview adiado pelo usuário até encerrar os ajustes; SQL remoto do compartilhamento ainda pendente de aplicação/validação.
+
+- [ ] **Abrir o aplicativo ao clicar na notificação de conclusão de uma aula.** Atualmente, o clique na notificação não faz nada. Fazer o clique abrir ou trazer a janela do aplicativo para frente. Implementação preparada no lote 0.7.5; validação focada e clique nativo no preview pendentes.
+- [ ] **Escolha de som de conclusão e catálogo compartilhado com Notas.** Em Preferências, adicionar um select para escolher o som de conclusão da aula, mantendo a ação existente de testar o som escolhido. Compartilhar o mesmo catálogo de opções com os sons de notificação das Notas. Preservar os sons atuais e acrescentar pelo menos três sons curtos e três sons longos, incluindo opções mais alarmantes para quem desejar um alerta mais perceptível. Implementação preparada no lote 0.7.5, com defaults de perfis antigos preservados; testes e avaliação audível no preview pendentes.
 
 - [x] **Próximo lote, após publicar a transição de repositório: sugestões de correção ortográfica no botão direito.** Usar o corretor nativo do Electron, sem biblioteca pesada, para sugerir e substituir palavras sublinhadas em vermelho nos campos editáveis de texto (cadernos, notas e demais editores). Conferir português do Brasil, disponibilidade/download e uso offline do dicionário, palavra sem sugestão e menus já existentes; excluir senhas e campos sem texto. Preservar seleção, mídia, formatação, HTML importado e desfazer/refazer; considerar adicionar/remover palavras do dicionário pessoal. Viabilidade confirmada na API `context-menu`/`dictionarySuggestions`/`replaceMisspelling`. Concluído na 0.7.2: provedor oficial do Electron com Hunspell e dicionário pt-BR locais no Windows. Testes focados e fluxo de interface aprovados, preview 0.7.2-preview.1 aceito e publicação autorizada pelo usuário. Referência: https://www.electronjs.org/docs/latest/tutorial/spellchecker/.
 

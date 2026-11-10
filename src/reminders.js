@@ -1,11 +1,12 @@
 import { documentImages, documentText, validNoteDocument } from './note-document.js';
+import { notificationSounds } from './notification-sounds.js';
 
 export function calendarDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T12:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
-export const reminderSounds = [['chime', 'Sino suave'], ['double', 'Dois toques'], ['rise', 'Melodia'], ['silent', 'Sem som']];
+export const reminderSounds = notificationSounds;
 export const validReminderTime = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 export function newReminder(date, sound = 'chime') { return { id: crypto.randomUUID(), title: '', description: '', schedule: 'date', date, seenDates: [], notifyOnStartup: false, time: '', singleUse: false, sound }; }
 export function validReminderDocument(note) { return note.descriptionDocument === undefined || (validNoteDocument(note.descriptionDocument) && !documentImages({ document: note.descriptionDocument }).length && documentText(note.descriptionDocument) === note.description); }

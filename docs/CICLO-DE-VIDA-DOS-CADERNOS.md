@@ -1,5 +1,11 @@
 # Cadernos compartilhados e seleção em lote
 
+## Ajuste de destinatários — 10/11/2026
+
+Livros e cadernos usam o mesmo seletor: marcar equipe escolhe todos os membros aceitos atuais; os checkboxes permitem restringir pessoas. Reabrir mostra o acesso efetivo. Alterar os destinatários não reenvia o conteúdo, mas exige revisão e token atuais. O proprietário é indicado como acesso administrativo fixo. Equipes → Rever permissões consulta/edita as mesmas concessões; exceções ao escopo Todos preservam o acesso aos outros recursos e aos futuros. A aplicação remota desse contrato está pendente em DADOS-E-MIGRACOES.md.
+
+Na edição do caderno, o ícone Compartilhar fica no cabeçalho, antes de Fechar. Ele salva primeiro as alterações locais; erro de salvamento mantém a edição aberta. Cancelar/Salvar ficam no rodapé, com exclusão à esquerda. A capa recebida é resolvida separadamente para o cartão; abrir o caderno continua resolvendo o conteúdo completo.
+
 ## Criar, consultar e compartilhar
 
 O caderno pessoal mantém o editor e o salvamento existentes. No editor de dados do caderno, Compartilhar salva primeiro o estado local antes de consultar os espaços. O menu de compartilhamento mostra as publicações atuais e permite marcar/desmarcar cada equipe. Criar/aceitar equipes e gerenciar as permissões continua em Equipes.

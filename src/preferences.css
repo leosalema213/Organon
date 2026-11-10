@@ -48,3 +48,4 @@
   .preferences-footer { padding-inline:16px; }
   .preferences-footer>span { font-size:8px; }
 }
+.completion-sound-row{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin-top:12px}.completion-sound-row>label{display:grid;gap:6px;flex:1 1 180px;min-width:0;font-size:var(--control-font);color:var(--muted)}.completion-sound-row select{width:100%;background:transparent;color:inherit;border:1px solid var(--line);border-radius:6px}.completion-sound-row>button{flex:0 0 auto}

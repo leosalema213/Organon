@@ -166,3 +166,15 @@ test('workspace watches do not subscribe to spaces missing from the current auth
   h.setUser(null); await business.syncSession();
   await assert.rejects(business.dispatch('teams', 'list'), /Entre/);
 });
+
+test('notebook card downloads only its cover and rechecks access after the transfer', async t => {
+  const h = harness(t), business = h.create(), bytes = Buffer.from('89504e470d0a1a0a01020304', 'hex');
+  const object = `${ORG}/notebooks/${RESOURCE}/${digest(bytes)}`;
+  h.assets.set(object, bytes);
+  h.server.resource = { org_id: ORG, module: 'notebooks', resource_id: RESOURCE, revision: 1,
+    content: { id: RESOURCE, cover: { bucket: 'organon-shared', object }, pages: [{ image: { bucket: 'organon-shared', object: 'must-not-download-pages' } }] } };
+  assert.deepEqual(await business.dispatch('teams', 'resourceCover', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE }), { cover: 'data:image/png;base64,' + bytes.toString('base64') });
+  assert.equal(h.requests.filter(r => r.endpoint.includes('/object/authenticated/')).length, 1);
+  h.server.beforeRequest = async endpoint => { if (endpoint.includes('/object/authenticated/')) h.server.permission = false; };
+  await assert.rejects(business.dispatch('teams', 'resourceCover', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE }), /revoked|removido/);
+});

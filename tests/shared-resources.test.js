@@ -31,6 +31,21 @@ test('remoção usa a revisão atual e preserva falhas para nova tentativa', asy
   await removeResourceShares(api, 'team', 'notebooks', [row('notebooks', 'b')], () => false);
   assert.equal(calls.length, 2);
 });
+
+test('destinatários alteram cópias existentes e preservam proprietário e outras publicações', () => {
+  const members = [{ user_id: 'one', selected: true }, { user_id: 'two', selected: false }, { user_id: 'admin', fixed: true, selected: true }];
+  for (const module of ['books', 'notebooks']) {
+    const entry = { rows: [row(module, 'a')], audiences: { a: { members } } };
+    const entries = new Map([['team', entry]]);
+    assert.deepEqual(shareChanges([space], entries, [{ id: 'a' }], {}, module, 'owner', { team: ['one'] }), []);
+    const changes = shareChanges([space], entries, [{ id: 'a' }], {}, module, 'owner', { team: ['two'] });
+    assert.deepEqual(changes[0].recipientIds, ['two', 'admin']);
+    assert.equal(changes[0].own[0].revision, 2);
+    assert.deepEqual(shareChanges([space], entries, [{ id: 'a' }], {}, module, 'guest', { team: null }), []);
+    assert.deepEqual(shareChanges([space], entries, [{ id: 'a' }], {}, module, 'owner', { team: null })[0].recipientIds, ['one', 'two', 'admin']);
+    assert.equal(shareChanges([space], entries, [{ id: 'a' }], { team: false }, module, 'owner', { team: null })[0].publish, false);
+  }
+});
 test('cópia pessoal mantém páginas e imagens, elimina vínculo e aparece uma vez', () => {
   const notebook = { ...newNotebook(), name: 'Recebido' };
   const first = { ...notebook, orgId: 'one', publishedBy: 'guest', revision: 1 };

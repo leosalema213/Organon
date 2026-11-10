@@ -13,14 +13,19 @@ export async function removeResourceShares(api, orgId, module, copies, active = 
   }
 }
 
-export function shareChanges(spaces, entries, resources, selected, module, userId) {
+export function shareChanges(spaces, entries, resources, selected, module, userId, recipients = {}) {
   return spaces.flatMap(space => {
     const entry = entries?.get(space.id);
-    if (!entry || entry.error || !Object.hasOwn(selected, space.id)) return [];
+    if (!entry || entry.error || (!Object.hasOwn(selected, space.id) && !Object.hasOwn(recipients, space.id))) return [];
     return resources.flatMap(resource => {
       const shares = resourceShares(entry.rows, module, resource, userId, space.owner_id);
-      return (selected[space.id] ? !shares.own.length && !shares.other : shares.own.length > 0)
-        ? [{ space, resource, own: shares.own, publish: selected[space.id] }] : [];
+      const publish = selected[space.id] ?? true;
+      const audience = entry.audiences?.[resource.id];
+      const recipientIds = audience && Object.hasOwn(recipients, space.id)
+        ? audience.members.filter(member => member.fixed || recipients[space.id] === null || recipients[space.id].includes(member.user_id)).map(member => member.user_id) : undefined;
+      const audienceChanged = recipientIds && (audience.copies || [audience]).some(copy => copy.members.some(member => !!member.selected !== recipientIds.includes(member.user_id)));
+      return (publish ? !shares.other && (!shares.own.length || audienceChanged) : shares.own.length > 0)
+        ? [{ space, resource, own: shares.own, publish, ...(recipientIds ? { recipientIds } : {}) }] : [];
     });
   });
 }

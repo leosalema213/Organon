@@ -12,7 +12,7 @@ const MODULES = new Set(['teams', 'kanban', 'financeiro', 'mei']);
 const OPTIONAL = new Set(['financeiro', 'mei']);
 const EVENT_TYPES = new Set(['changed', 'invalidate', 'resync', 'connection']);
 const CONNECTION_STATUSES = new Set(['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED', 'CONNECTING', 'UNAVAILABLE']);
-const TEAM_ACTIONS = new Set(['list', 'create', 'search', 'members', 'roster', 'invite', 'respond', 'permissions', 'revoke', 'notifications', 'inbox', 'read', 'readAll', 'deleteNotice', 'deleteAllNotices', 'catalog', 'resources', 'publish', 'unpublish', 'editResource', 'openResource', 'downloadBook']);
+const TEAM_ACTIONS = new Set(['list', 'create', 'search', 'members', 'roster', 'invite', 'respond', 'permissions', 'revoke', 'notifications', 'inbox', 'read', 'readAll', 'deleteNotice', 'deleteAllNotices', 'catalog', 'resources', 'publish', 'unpublish', 'editResource', 'openResource', 'downloadBook', 'shareRecipients', 'setRecipients', 'resourceCover']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HASH = /^[a-f0-9]{64}$/;
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -291,7 +291,19 @@ function createBusiness({ cloud, plugins, readData, books, emit = () => {}, crea
     if (OPTIONAL.has(module) && !await installed(module)) throw new Error('Instale este adicional em Preferências → Plugins.');
     assertSession(epoch);
     let result;
-    if (module === 'teams' && action === 'openResource') result = await openResource(payload, epoch);
+    if (module === 'teams' && action === 'resourceCover') {
+      const { scope, row } = await sharedRow(payload, epoch);
+      if (scope.module !== 'notebooks') throw new Error('Recurso inválido.');
+      const reference = row.content.cover;
+      let cover = null;
+      if (reference) {
+        const bytes = await downloadReference(scope, reference, epoch, IMAGE_LIMIT);
+        cover = `data:${imageMime(bytes)};base64,${bytes.toString('base64')}`;
+      }
+      if (!await allowed(scope.orgId, scope.module, scope.resourceId, false, epoch)) throw new Error('O acesso ao caderno foi removido.');
+      result = { cover };
+    }
+    else if (module === 'teams' && action === 'openResource') result = await openResource(payload, epoch);
     else if (module === 'teams' && action === 'downloadBook') result = await downloadBook(payload, epoch);
     else result = await services[module].dispatch(action, payload);
     assertSession(epoch); return result;

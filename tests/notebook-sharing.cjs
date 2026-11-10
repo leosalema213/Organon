@@ -8,6 +8,7 @@ let app;
   const { seed, newNotebook } = await import('../src/model.js');
   const personal = ['Pessoal um', 'Pessoal dois'].map(name => ({ ...newNotebook(), name }));
   const received = ['Recebido', 'Editável'].map(name => ({ ...newNotebook(), name }));
+  received[0].cover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
   const books = [1, 2].map(index => ({ id: crypto.randomUUID(), title: `Livro ${index}`, hash: String(index).repeat(64), size: 10, format: 'pdf', planIds: [], page: 1, pageCount: null, furthestPage: 0, completedAt: null, importedAt: new Date().toISOString(), view: { spread: 1, zoom: 1, contrast: 'paper' } }));
   fs.writeFileSync(path.join(profile, 'compasso.json'), JSON.stringify({ ...seed(), onboardingCompleted: true, notebooks: personal, books }));
   app = await electron.launch({ args: [root, `--user-data-dir=${profile}`, '--skip-account-prompt'], env });
@@ -19,7 +20,7 @@ let app;
     const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Autor', nickname: 'Autor' };
     const spaces = [1, 2].map(i => ({ id: `cccccccc-cccc-4ccc-8ccc-ccccccccccc${i}`, name: `Equipe ${i}`, owner_id: user.id }));
     const state = globalThis.notebookSharing = { personal, received, books, spaces, rows: [], calls: [], failPublish: true, failDelete: false, conflict: false };
-    for (const content of received) for (const space of spaces) state.rows.push({ module: 'notebooks', org_id: space.id, resource_id: content.id, content, published_by: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', revision: 1 });
+    for (const content of received) for (const space of spaces) state.rows.push({ module: 'notebooks', org_id: space.id, resource_id: content.id, content: content.cover ? { ...content, cover: { bucket: 'organon-shared', object: 'private-cover-reference' } } : content, published_by: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', revision: 1 });
     const invalidate = () => win.webContents.send('modules:changed', { module: 'teams', type: 'invalidate' });
     for (const action of ['status', 'sync', 'skip']) {
       ipcMain.removeHandler(`cloud:${action}`); ipcMain.handle(`cloud:${action}`, () => ({ enabled: true, promptSeen: true, user, busy: false }));
@@ -29,14 +30,23 @@ let app;
       if (module !== 'teams') throw new Error('Módulo inesperado');
       if (action === 'list') return spaces;
       if (action === 'inbox') return { notifications: [], invitations: [], unreadCount: 0 };
+      if (action === 'shareRecipients') {
+        const copy = state.rows.find(row => row.org_id === payload.orgId && row.module === payload.module && row.resource_id === payload.resourceId);
+        return { token: 'a'.repeat(32), members: [{ user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Destinatário', selected: !copy?.recipientIds || copy.recipientIds.includes('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') }], revision: copy?.revision || 0 };
+      }
       if (action === 'resources') return state.rows.filter(row => row.org_id === payload.orgId);
       const row = state.rows.find(row => row.org_id === payload.orgId && row.module === payload.module && row.resource_id === payload.resourceId);
-      if (action === 'openResource') { if (!row) throw new Error('Acesso removido'); return { ...row, canWrite: row.content.name === 'Editável' }; }
+      if (action === 'resourceCover') { state.calls.push({ action, ...payload }); return { cover: received.find(item => item.id === payload.resourceId)?.cover || null }; }
+      if (action === 'openResource') { if (!row) throw new Error('Acesso removido'); return { ...row, content: row.content.cover?.bucket ? { ...row.content, cover: received.find(item => item.id === payload.resourceId).cover } : row.content, canWrite: row.content.name === 'Editável' }; }
+      if (action === 'setRecipients') {
+        if (!row || row.revision !== payload.revision) throw new Error('Conflito');
+        row.recipientIds = payload.recipientIds; row.revision++; state.calls.push({ action, ...payload }); invalidate(); return row;
+      }
       if (action === 'publish') {
         if (state.failPublish && payload.module === 'books' && payload.resourceId === books[1].id) { state.failPublish = false; throw new Error('Falha parcial de teste'); }
         if (row) throw new Error('Publicação duplicada');
         const content = payload.module === 'books' ? books.find(item => item.id === payload.resourceId) : personal.find(item => item.id === payload.resourceId);
-        state.rows.push({ org_id: payload.orgId, module: payload.module, resource_id: payload.resourceId, content, published_by: user.id, revision: 1 });
+        state.rows.push({ org_id: payload.orgId, module: payload.module, resource_id: payload.resourceId, content, published_by: user.id, revision: 1, recipientIds: payload.recipientIds });
         state.calls.push({ action, ...payload }); invalidate(); return {};
       }
       if (action === 'unpublish') {
@@ -58,6 +68,8 @@ let app;
   assert.equal(await card('Recebido').count(), 1);
   assert.equal(await page.getByRole('button', { name: 'Cadernos compartilhados', exact: true }).count(), 0);
   await card('Recebido').getByRole('img', { name: 'Caderno compartilhado' }).waitFor();
+  await page.waitForFunction(() => [...document.querySelectorAll('.journal-card')].find(card => card.textContent.includes('Recebido'))?.querySelector('.journal-cover img')?.naturalWidth > 0);
+  assert(await app.evaluate(() => globalThis.notebookSharing.calls.some(call => call.action === 'resourceCover')));
   await card('Pessoal um').getByRole('button', { name: 'Editar caderno Pessoal um', exact: true }).click();
   await page.getByRole('dialog', { name: 'Editar caderno', exact: true }).getByRole('button', { name: 'Compartilhar caderno', exact: true }).click();
   let modal = page.getByRole('dialog', { name: 'Compartilhar caderno', exact: true });
@@ -65,6 +77,16 @@ let app;
   await modal.getByRole('button', { name: 'Compartilhar', exact: true }).click(); await modal.waitFor({ state: 'hidden' });
   await card('Pessoal um').getByRole('img', { name: 'Caderno compartilhado' }).waitFor();
   assert.equal(await card('Pessoal um').count(), 1);
+  await card('Pessoal um').getByRole('button', { name: 'Editar caderno Pessoal um', exact: true }).click();
+  const editing = page.getByRole('dialog', { name: 'Editar caderno', exact: true });
+  assert.equal(await editing.locator('.modal-heading-actions').getByRole('button', { name: 'Compartilhar caderno', exact: true }).count(), 1);
+  assert.equal(await editing.getByRole('button', { name: 'Salvar', exact: true }).count(), 1);
+  await editing.getByRole('button', { name: 'Compartilhar caderno', exact: true }).click();
+  modal = page.getByRole('dialog', { name: 'Compartilhar caderno', exact: true });
+  await modal.getByRole('checkbox', { name: 'Destinatário', exact: true }).uncheck();
+  await modal.getByRole('button', { name: 'Salvar alterações', exact: true }).click(); await modal.waitFor({ state: 'hidden' });
+  assert.deepEqual(await app.evaluate(() => globalThis.notebookSharing.calls.find(call => call.action === 'setRecipients').recipientIds), []);
+
   await page.getByRole('button', { name: 'Compartilhar cadernos', exact: true }).click();
   modal = page.getByRole('dialog', { name: 'Compartilhar cadernos', exact: true });
   await modal.getByRole('checkbox', { name: 'Todos os cadernos', exact: true }).check();
@@ -76,10 +98,14 @@ let app;
   modal = page.getByRole('dialog', { name: 'Compartilhar livros', exact: true });
   await modal.getByRole('checkbox', { name: 'Todos os livros', exact: true }).check();
   await modal.getByRole('checkbox', { name: 'Equipe 2', exact: true }).check();
+  console.log('Cenário esperado: simulando uma falha no Livro 2 para conferir a recuperação na nova tentativa.');
   await modal.getByRole('button', { name: 'Compartilhar', exact: true }).click();
   await modal.getByRole('alert').waitFor();
+  assert.match(await modal.getByRole('alert').innerText(), /Livro 2.*Falha parcial de teste/);
+  assert.equal(await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'publish' && call.module === 'books').length), 1);
   await modal.getByRole('button', { name: 'Salvar alterações', exact: true }).click(); await modal.waitFor({ state: 'hidden' });
   assert.equal(await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'publish' && call.module === 'books').length), 2);
+  console.log('Recuperação conferida: Livro 2 compartilhado na nova tentativa, sem duplicar o Livro 1.');
   await nav.getByRole('button', { name: 'Cadernos', exact: true }).click();
   await card('Recebido').getByRole('button', { name: 'Abrir caderno Recebido', exact: true }).click();
   await page.locator('.journal-shared-reader .journal-layout').waitFor();

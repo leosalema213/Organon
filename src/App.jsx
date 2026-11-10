@@ -34,19 +34,7 @@ import BlockKinds, { BlockIcon } from './BlockKinds.jsx';
 import { blockKind, builtInKinds, customBlock, planBlockCount } from './block-kinds.js';
 
 const LOCAL_KEY = 'compasso-v1';
-let audioContext;
-function unlockAudio() { try { audioContext ||= new AudioContext(); if (audioContext.state === 'suspended') audioContext.resume(); } catch {} }
-function ring() {
-  unlockAudio();
-  if (!audioContext) return;
-  for (let i = 0; i < 4; i++) {
-    const osc = audioContext.createOscillator(); const gain = audioContext.createGain();
-    const t = audioContext.currentTime + i * 0.34;
-    osc.type = 'sine'; osc.frequency.value = i % 2 ? 880 : 660;
-    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.22, t + 0.02); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.27);
-    osc.connect(gain); gain.connect(audioContext.destination); osc.start(t); osc.stop(t + 0.3);
-  }
-}
+const unlockAudio = unlockReminderAudio;
 const IconButton = ({ title, children, ...props }) => <button className="icon-button" title={title} aria-label={title} {...props}>{children}</button>;
 function CompactExtraTime({ disabled, onAdd }) {
   const [open, setOpen] = useState(false);
@@ -245,7 +233,7 @@ export default function App() {
       update(result.finished ? prepareCurrentDay(result.state) : result.state);
       if (result.finished) {
         const active = result.completed || result.state.active;
-        if (result.state.settings.sound) ring();
+        if (result.state.settings.sound) playReminderSound(result.state.settings.completionSound || 'completion');
         window.desktop?.notify(`${active.blockName} terminou. Você escolhe quando começar o próximo bloco.`);
         setToast(`✓ ${active.blockName} concluído! Próximo bloco no seu tempo.`);
       }
@@ -421,7 +409,7 @@ export default function App() {
     {(!window.desktop?.cloud || account.status) && !account.open && ['welcome', 'tips'].includes(tutorial) && <Tutorial stage={tutorial} Modal={Modal} onStart={() => { setTutorial('creating'); setEditor(firstPlan()); }} onClose={finishTutorial} onDone={() => { finishTutorial(); setPage('plans'); }} />}
     {reminderEditor && <ReminderEditor key={reminderEditor.id} value={reminderEditor} onClose={() => setReminderEditor(null)} onSave={saveReminder} onSoundChange={sound => update(s => ({ ...s, settings: { ...s.settings, reminderSound: sound } }))} Modal={Modal} />}
     {notesPlan && data.plans.some(p => p.id === notesPlan) && <Notebook key={notesPlan} plan={data.plans.find(p => p.id === notesPlan)} date={date} initialNote={initialNote} saveError={saveError} onClose={() => setNotesPlan(null)} onChange={change => update(s => ({ ...s, plans: s.plans.map(p => p.id === notesPlan ? typeof change === 'function' ? change(p) : change : p) }))} notify={setToast} Modal={Modal} Sketch={Sketch} />}
-    {settings && !account.open && <Preferences settings={data.settings} onChange={fields => { unlockAudio(); update(s => ({ ...s, settings: { ...s.settings, ...fields } })); }} onClose={() => setSettings(false)} onTestSound={ring} onBackup={backup} onImport={importBackup} onTutorial={() => { setSettings(false); setTutorial('tips'); }} updates={appUpdates} account={account} Modal={Modal} />}
+    {settings && !account.open && <Preferences settings={data.settings} onChange={fields => { unlockAudio(); update(s => ({ ...s, settings: { ...s.settings, ...fields } })); }} onClose={() => setSettings(false)} onTestSound={() => playReminderSound(data.settings.completionSound || 'completion')} onBackup={backup} onImport={importBackup} onTutorial={() => { setSettings(false); setTutorial('tips'); }} updates={appUpdates} account={account} Modal={Modal} />}
     {account.open && <AccountDialog account={account} Modal={Modal} />}
     {!account.open && account.conflictOpen && <SyncConflictDialog account={account} Modal={Modal} />}
     <PluginUpdateDialog plugins={business.plugins} hidden={account.open || account.conflictOpen || appUpdates.open || settings || !!tutorial} />

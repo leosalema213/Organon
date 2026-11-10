@@ -28,6 +28,18 @@ test('closed transport ignores renderer identity/status and targets UUID invitat
   assert.equal(calls[0].token, 'main-only');
   await assert.rejects(service.dispatch('arbitrarySQL', {}));
 });
+
+test('resource audience uses a closed payload and validates recipients and exclusions', async () => {
+  const { service, calls } = setup();
+  await service.dispatch('shareRecipients', { orgId, module: 'notebooks', resourceId: recipientId, grants: { books: { mode: 'all' } } });
+  assert.deepEqual(calls[0].body.p_payload, { orgId, module: 'notebooks', resourceId: recipientId });
+  await assert.rejects(service.dispatch('setRecipients', { orgId, module: 'books', resourceId: recipientId, revision: 1 }), /destinatários/);
+  await assert.rejects(service.dispatch('setRecipients', { orgId, module: 'books', resourceId: recipientId, revision: 1, recipientIds: ['invalid'], audienceToken: 'a'.repeat(32) }), /Identificador/);
+  await service.dispatch('setRecipients', { orgId, module: 'books', resourceId: recipientId, revision: 1, recipientIds: [recipientId, recipientId], audienceToken: 'a'.repeat(32) });
+  assert.deepEqual(calls[1].body.p_payload.recipientIds, [recipientId]);
+  assert.deepEqual(grants({ books: { mode: 'all', excludedIds: [recipientId] } }).books.excludedIds, [recipientId]);
+  assert.throws(() => grants({ notebooks: { mode: 'selected', ids: [orgId], excludedIds: [recipientId] } }), /Exceções/);
+});
 test('inbox actions discard renderer ownership and do not mutate memberships', async () => {
   const { service, calls, events } = setup();
   for (const action of ['inbox', 'readAll', 'deleteAllNotices']) await service.dispatch(action, { user_id: recipientId, orgId, id: recipientId });

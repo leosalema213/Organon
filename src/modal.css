@@ -6,6 +6,7 @@
 .modal .modal-heading h2 { font-size:16px; letter-spacing:-.2px; }
 .modal .modal-heading p { margin-top:4px; font-size:12px; }
 .modal .modal-heading .icon-button { margin:0; }
+.modal-heading-actions { display:flex;align-items:center;gap:9px;flex-shrink:0; }
 /* The dialog scrolls. Keep the full body height, including its bottom inset. */
 .modal .modal-body { flex:none; padding:var(--modal-body-space) 16px; font-size:12px; }
 .modal .modal-body > :is(form,.confirm-text,.update-body,.note-delete-body,.icon-picker-body,.block-kind-form) { padding:0; }

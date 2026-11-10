@@ -13,7 +13,7 @@ const { createPluginManager, registerPluginIpc, scheme } = require('./plugins.cj
 const { createBusiness } = require('./business.cjs');
 const { createRealtimeClient } = require('./realtime.cjs');
 protocol.registerSchemesAsPrivileged([scheme]);
-const { ReminderNotifications, openRemindersWindow } = require('./reminder-notifications.cjs');
+const { ReminderNotifications, openRemindersWindow, openAppWindow, showCompletionNotification } = require('./reminder-notifications.cjs');
 const { APP_ID, DEVELOPMENT_APP_ID, legacyUserData, repairDevelopmentShortcut } = require('./branding.cjs');
 // Native dialogs fall back to app.getName(), which otherwise uses the legacy package name.
 app.setName('Organon');
@@ -163,6 +163,9 @@ else {
       win.setAppDetails({ appId, appIconPath: app.isPackaged ? path.join(process.resourcesPath, 'icon.ico') : path.join(__dirname, '../assets/icon.ico'), appIconIndex: 0,
         relaunchDisplayName: 'Organon', relaunchCommand: app.isPackaged ? `"${process.execPath}"` : `"${process.execPath}" "${app.getAppPath()}"` });
     }
+    if (process.platform === 'win32' && !isolated && typeof Notification.handleActivation === 'function') {
+      Notification.handleActivation(() => openAppWindow(win));
+    }
     const reminderNotifications = new ReminderNotifications({ Notification, available: !isolated, open: () => openRemindersWindow(win) });
     ipcMain.handle('startup:status', e => { if (trusted(e)) return startup.status(); });
     ipcMain.handle('startup:set', (e, enabled) => { if (trusted(e)) return startup.set(enabled); });
@@ -267,7 +270,7 @@ else {
     ipcMain.on('window:minimize', e => { if (trusted(e)) win.minimize(); });
     ipcMain.on('window:maximize', e => { if (trusted(e) && !compact) win.isMaximized() ? win.unmaximize() : win.maximize(); });
     ipcMain.on('window:close', e => { if (trusted(e)) win.close(); });
-    ipcMain.on('timer:notify', (e, body) => { if (trusted(e) && Notification.isSupported()) new Notification({ title: 'Organon · Bloco concluído', body: String(body).slice(0, 300), silent: true }).show(); });
+    ipcMain.on('timer:notify', (e, body) => { if (trusted(e)) showCompletionNotification({ Notification, win, body }); });
     ipcMain.handle('data:export', async (e, data) => {
       if (!trusted(e)) return;
       const { canceled, filePath } = await dialog.showSaveDialog(win, { defaultPath: 'organon-backup.json', filters: [{ name: 'Backup JSON', extensions: ['json'] }] });

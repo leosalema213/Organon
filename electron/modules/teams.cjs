@@ -12,7 +12,9 @@ function grants(value = {}) {
     if (!['none', 'all', ...(module !== 'financeiro' ? ['selected'] : [])].includes(g.mode)) throw new Error('Escopo inválido.');
     const ids = g.mode === 'selected' ? [...new Set((g.ids || []).map(uuid))] : [];
     if (ids.length > 500 || (g.mode === 'selected' && !ids.length)) throw new Error('Selecione os recursos.');
-    return [module, { mode: g.mode, ids, write: g.mode !== 'none' && g.write === true }];
+    const excludedIds = g.excludedIds === undefined ? [] : [...new Set(g.excludedIds.map(uuid))];
+    if (excludedIds.length > 500 || (excludedIds.length && (!['books', 'notebooks'].includes(module) || g.mode !== 'all'))) throw new Error('Exceções de acesso inválidas.');
+    return [module, { mode: g.mode, ids, write: g.mode !== 'none' && g.write === true, ...(excludedIds.length ? { excludedIds } : {}) }];
   }));
 }
 function createService({ cloud, realtimeClient, emit = () => {}, serializeResource, prepareAssets, getResourceCatalog, validateSharedResource, readData, readBook, kanbanCatalog } = {}) {
@@ -41,6 +43,11 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
     const token = await cloud.token();
     const p = {};
     switch (action) {
+      case 'shareRecipients': case 'setRecipients':
+        p.orgId = uuid(input.orgId); p.resourceId = uuid(input.resourceId); p.module = input.module;
+        if (!['notebooks', 'books'].includes(p.module)) throw new Error('Recurso inválido.');
+        if (action === 'setRecipients') { p.revision = revision(input.revision); }
+        break;
       case 'catalog':
         p.orgId = uuid(input.orgId);
         // Verify accepted membership remotely before touching the personal catalog.
@@ -78,6 +85,13 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
       case 'unpublish': p.orgId = uuid(input.orgId); p.module = input.module; if (!['notebooks', 'books'].includes(p.module)) throw new Error('Recurso inválido.'); p.resourceId = uuid(input.resourceId); p.revision = revision(input.revision); break;
       default: throw new Error('Ação de equipes inválida.');
     }
+    if (['publish', 'setRecipients'].includes(action) && input.recipientIds !== undefined) {
+      if (!Array.isArray(input.recipientIds) || input.recipientIds.length > 500) throw new Error('Destinatários inválidos.');
+      p.recipientIds = [...new Set(input.recipientIds.map(uuid))];
+      if (typeof input.audienceToken !== 'string' || !/^[a-f0-9]{32}$/.test(input.audienceToken)) throw new Error('Consulte os destinatários novamente.');
+      p.audienceToken = input.audienceToken;
+    }
+    if (action === 'setRecipients' && !p.recipientIds) throw new Error('Escolha os destinatários.');
     let result;
     try { result = await cloud.request('/rest/v1/rpc/organon_teams', { method: 'POST', token, body: { p_action: action, p_payload: p } }); }
     catch (error) {
@@ -108,7 +122,7 @@ function createService({ cloud, realtimeClient, emit = () => {}, serializeResour
         return { ...fields, avatar: avatars.get(`${member.user_id}:${avatar_hash}`) || null };
       });
     }
-    if (!['list', 'notifications', 'inbox', 'search', 'members', 'roster', 'resources'].includes(action)) emit({ type: 'invalidate' });
+    if (!['list', 'notifications', 'inbox', 'search', 'members', 'roster', 'resources', 'shareRecipients'].includes(action)) emit({ type: 'invalidate' });
     return result;
   }
   return { dispatch, start, stop };
