@@ -59,6 +59,8 @@ Preserve planos, anotações, imagens, histórico e preferências do usuário ao
 
 ## Padrão visual
 
+- Antes de investigar a aparência do Organon ou adaptá-la a outro aplicativo, consulte `docs/REFERENCIA-VISUAL-ORGANON.md`. O guia reúne marca, assets, tokens, componentes, layout, preferências e referências de instalação/atualização; abra depois somente as fontes necessárias. Atualize a seção correspondente quando mudar a identidade ou os componentes compartilhados.
+
 - Use os controles compactos de `src/density.css`, com o Financeiro como referência. Botões `.primary` e `.secondary`, ações de modal, inputs de uma linha e selects compartilham altura mínima de 32 px, fonte de 12 px e ícones de ação de 14 px. Em barras de filtros, alinhe os controles e permita quebra de linha em janelas estreitas. Use os tokens `--control-*` para novos controles equivalentes. Reserve medidas locais para controles especializados, como botões de ícone, leitor e editor de texto.
 
 - Modais usam o componente compartilhado `src/Modal.jsx`, com espaçamento compacto e corpo/ações consistentes. Não acrescente padding duplicado nos formulários. Painéis completos podem usar a variante `panel`.

@@ -26,7 +26,8 @@ let app;
       ipcMain.removeHandler(`cloud:${action}`); ipcMain.handle(`cloud:${action}`, () => ({ enabled: true, promptSeen: true, user, busy: false }));
     }
     ipcMain.removeHandler('modules:watch'); ipcMain.handle('modules:watch', () => ({ connected: true }));
-    ipcMain.removeHandler('modules:call'); ipcMain.handle('modules:call', (_event, module, action, payload) => {
+    const jsonb = value => Array.isArray(value) ? value.map(jsonb) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, jsonb(value[key])])) : value;
+    ipcMain.removeHandler('modules:call'); ipcMain.handle('modules:call', async (_event, module, action, payload) => {
       if (module !== 'teams') throw new Error('Módulo inesperado');
       if (action === 'list') return spaces;
       if (action === 'inbox') return { notifications: [], invitations: [], unreadCount: 0 };
@@ -39,7 +40,7 @@ let app;
       if (action === 'resourceVersion') { if (!row) throw new Error('Acesso removido'); return { revision: row.revision, canWrite: row.published_by === user.id || row.content.name === 'Editável' }; }
       if (action === 'roster') return [{ user_id: user.id, name: 'Autor' }, { user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Destinatário' }];
       if (action === 'resourceCover') { state.calls.push({ action, ...payload }); return { cover: received.find(item => item.id === payload.resourceId)?.cover || null }; }
-      if (action === 'openResource') { if (!row) throw new Error('Acesso removido'); return { ...row, content: row.content.cover?.bucket ? { ...row.content, cover: received.find(item => item.id === payload.resourceId).cover } : row.content, canWrite: row.published_by === user.id || row.content.name === 'Editável' }; }
+      if (action === 'openResource') { if (!row) throw new Error('Acesso removido'); return { ...row, content: jsonb(row.content.cover?.bucket ? { ...row.content, cover: received.find(item => item.id === payload.resourceId).cover } : row.content), canWrite: row.published_by === user.id || row.content.name === 'Editável' }; }
       if (action === 'setRecipients') {
         if (!row || row.revision !== payload.revision) throw new Error('Conflito');
         row.recipientIds = payload.recipientIds; row.recipientWrites = { ...row.recipientWrites, ...payload.recipientWrites }; row.revision++; state.calls.push({ action, ...payload }); invalidate(); return row;
@@ -57,8 +58,12 @@ let app;
         state.rows.splice(state.rows.indexOf(row), 1); state.calls.push({ action, ...payload }); invalidate(); return {};
       }
       if (action === 'editResource') {
+        state.calls.push({ action, ...payload });
         if (state.conflict || !row || row.revision !== payload.revision) throw new Error('Este registro mudou. Atualize e reveja as alterações antes de salvar.');
-        row.content = payload.content; row.revision++; invalidate(); return row;
+        row.content = jsonb(payload.content); row.revision++;
+        if (state.loseResponse) { state.loseResponse = false; throw new Error('Resposta perdida após salvar'); }
+        if (state.slowWrite) await new Promise(resolve => setTimeout(resolve, 900));
+        invalidate(); return row;
       }
       throw new Error(`Ação inesperada: ${action}`);
     });
@@ -120,6 +125,20 @@ let app;
   assert.equal(await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'publish' && call.module === 'books').length), 2);
   console.log('Recuperação conferida: Livro 2 compartilhado na nova tentativa, sem duplicar o Livro 1.');
   await nav.getByRole('button', { name: 'Cadernos', exact: true }).click();
+  await page.waitForTimeout(250);
+  const unchangedFile = fs.statSync(path.join(profile, 'compasso.json')).mtimeMs;
+  const unchangedWrites = await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'editResource').length);
+  await card('Pessoal um').getByRole('button', { name: 'Abrir caderno Pessoal um', exact: true }).click();
+  await page.locator('.journal-shared-reader .journal-layout').waitFor();
+  await page.getByRole('textbox', { name: 'Texto da anotação', exact: true }).click();
+  await page.keyboard.press('ArrowRight');
+  await page.getByRole('button', { name: 'Editar caderno', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Editar caderno', exact: true }).getByRole('button', { name: 'Salvar', exact: true }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForTimeout(3600);
+  assert.equal(fs.statSync(path.join(profile, 'compasso.json')).mtimeMs, unchangedFile, 'Reler a publicação própria não regrava o snapshot pessoal');
+  assert.equal(await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'editResource').length), unchangedWrites, 'Salvar metadados idênticos não cria revisão');
+  await page.getByRole('button', { name: 'Todos os cadernos', exact: true }).click();
   await card('Recebido').getByRole('button', { name: 'Abrir caderno Recebido', exact: true }).click();
   await page.locator('.journal-shared-reader .journal-layout').waitFor();
   assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).isDisabled(), true);
@@ -134,17 +153,57 @@ let app;
   await page.getByRole('button', { name: 'Editar caderno', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Nova página', exact: true }).first().waitFor();
   assert.equal(await page.getByRole('button', { name: 'Salvar alterações', exact: true }).count(), 0);
+  const writesBeforeReading = await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'editResource').length);
+  const body = page.getByRole('textbox', { name: 'Texto da anotação', exact: true });
+  await body.click(); await page.keyboard.press('ArrowLeft');
+  await page.getByRole('button', { name: 'Negrito', exact: true }).click();
+  await page.getByRole('button', { name: 'Negrito', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('');
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForTimeout(3600); // Includes a poll and several autosave intervals.
+  assert.equal(await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'editResource').length), writesBeforeReading, 'Ler, selecionar e alternar formatação sem digitar não envia alterações');
   await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Salvo sem botão');
   await page.waitForFunction(() => document.querySelector('.journal-page-tools')?.textContent.includes('Salvo automaticamente'));
   await app.evaluate(() => { const state = globalThis.notebookSharing; if (!state.rows.some(row => row.content.pages[0]?.title === 'Salvo sem botão')) throw new Error('Autosave ausente'); });
+  await app.evaluate(() => { globalThis.notebookSharing.slowWrite = true; });
+  await body.fill('Texto inicial');
+  await page.waitForTimeout(650);
+  await body.press('End'); await page.keyboard.type(' e continuação durante o envio', { delay: 35 });
+  await page.waitForFunction(() => document.querySelector('.journal-page-tools')?.textContent.includes('Salvo automaticamente'));
+  assert.equal(await app.evaluate(() => globalThis.notebookSharing.rows.find(row => row.content.name === 'Editável').content.pages[0].text), 'Texto inicial e continuação durante o envio');
+  assert.equal(await page.getByRole('alert').count(), 0, 'JSONB reordenado não gera conflito contra o próprio envio');
+  await app.evaluate(() => { const state = globalThis.notebookSharing; state.slowWrite = false; state.loseResponse = true; });
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Envio com resposta perdida');
+  await page.getByRole('alert').filter({ hasText: 'Resposta perdida após salvar' }).waitFor();
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Envio com resposta perdida e continuação');
+  await page.reload(); await nav.getByRole('button', { name: 'Cadernos', exact: true }).click();
+  await card('Editável').getByRole('button', { name: 'Abrir caderno Editável', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).waitFor();
+  await page.waitForFunction(() => document.querySelector('.journal-page-tools')?.textContent.includes('Salvo automaticamente'));
+  assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).inputValue(), 'Envio com resposta perdida e continuação');
+  assert.equal(await page.getByRole('alert').count(), 0);
   await app.evaluate(({ BrowserWindow }) => { const state = globalThis.notebookSharing; const row = state.rows.find(row => row.content.name === 'Editável'); row.content.pages[0].title = 'Mudança remota'; row.revision++; BrowserWindow.getAllWindows()[0].webContents.send('modules:changed', { module: 'teams', type: 'invalidate' }); });
   await page.waitForFunction(() => document.querySelector('input[aria-label="Título da página"]')?.value === 'Mudança remota');
   await app.evaluate(() => { globalThis.notebookSharing.conflict = true; });
   await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Rascunho preservado');
   await page.getByRole('alert').filter({ hasText: 'Este registro mudou' }).waitFor();
   assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).inputValue(), 'Rascunho preservado');
-  await page.getByRole('button', { name: 'Baixar cópia do rascunho', exact: true }).click();
-  await page.getByText('Rascunho salvo nos seus cadernos.', { exact: true }).waitFor();
+  await app.evaluate(() => { globalThis.notebookSharing.conflict = false; });
+  await page.getByRole('button', { name: 'Sincronizar', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.journal-page-tools')?.textContent.includes('Salvo automaticamente'));
+  assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).inputValue(), 'Rascunho preservado');
+  await page.getByRole('textbox', { name: 'Título da página', exact: true }).fill('Escolha local');
+  await app.evaluate(() => { const row = globalThis.notebookSharing.rows.find(row => row.content.name === 'Editável'); row.content.pages[0].title = 'Escolha servidor'; row.revision++; });
+  await page.getByRole('button', { name: 'Comparar versões', exact: true }).click();
+  const comparison = page.getByRole('dialog', { name: 'Comparar versões do caderno', exact: true });
+  assert.match(await comparison.innerText(), /Escolha local/); assert.match(await comparison.innerText(), /Escolha servidor/);
+  assert.equal(await comparison.getByRole('button', { name: 'Mesclar e sincronizar', exact: true }).isDisabled(), true);
+  await comparison.getByLabel('Neste dispositivo', { exact: true }).check();
+  await comparison.getByRole('button', { name: 'Mesclar e sincronizar', exact: true }).click();
+  await comparison.waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => document.querySelector('.journal-page-tools')?.textContent.includes('Salvo automaticamente'));
+  assert.equal(await page.getByRole('textbox', { name: 'Título da página', exact: true }).inputValue(), 'Escolha local');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'compasso.json'))).notebooks.some(item => item.name.endsWith('(rascunho)')), false, 'Sincronização não cria cadernos extras');
   await page.locator('.journal-shared-reader .journal-layout').waitFor();
   await page.getByRole('button', { name: 'Todos os cadernos', exact: true }).first().click();
   await app.evaluate(({ BrowserWindow }) => {

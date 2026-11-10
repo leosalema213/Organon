@@ -53,7 +53,10 @@ body:has([role="dialog"][aria-modal="true"]) .main-scroll { overflow:hidden; }
 .notebook-text[data-empty="true"]::before { content:attr(data-placeholder);float:left;height:0;pointer-events:none;color:#999; }
 .note-document-image { position:relative;display:block;width:fit-content;max-width:100%;margin:10px 0;line-height:0; }
 .note-document-image img { display:block;max-width:100%;height:auto;border:1px solid #e8e8ed;border-radius:7px; }
-.note-document-image .icon-button { position:absolute;top:6px;right:6px;width:23px;height:23px;background:#181818b3;color:#fff;border:1px solid #ffffff30;border-radius:6px;font-size:20px;line-height:1; }
+.note-document-image .icon-button { position:absolute;top:6px;right:6px;display:flex;align-items:center;justify-content:center;width:23px;height:23px;padding:0;background:#181818b3;color:#fff;border:1px solid #ffffff30;border-radius:6px;line-height:1; }
+.note-document-image .icon-button:hover, [data-theme="dark"] .note-document-image .icon-button:hover, [data-palette] .note-document-image .icon-button:hover { background:#181818b3;color:#fff; }
+.note-document-image .icon-button[hidden] { display:none; }
+.note-document-image .icon-button svg { display:block;flex-shrink:0; }
 .note-document-image.ProseMirror-selectednode img { outline:2px solid #999;outline-offset:2px; }
 [data-theme="dark"] .note-document-image img { border-color:#ffffff13; }
 .notebook-title:focus-visible,.notebook-text:focus-visible,.notebook-search input:focus-visible { outline:none; }

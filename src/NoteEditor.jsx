@@ -22,7 +22,12 @@ const Image = Node.create({
       const image = document.createElement('img'); image.src = node.attrs.src; image.alt = 'Imagem da anotação';
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'icon-button';
       remove.hidden = !editor.isEditable;
-      remove.setAttribute('aria-label', 'Remover imagem'); remove.title = 'Remover imagem'; remove.textContent = '×';
+      remove.setAttribute('aria-label', 'Remover imagem'); remove.title = 'Remover imagem';
+      const cross = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      cross.setAttribute('viewBox', '0 0 24 24'); cross.setAttribute('width', '14'); cross.setAttribute('height', '14'); cross.setAttribute('aria-hidden', 'true');
+      const strokes = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      strokes.setAttribute('d', 'M18 6 6 18M6 6l12 12'); strokes.setAttribute('stroke', 'currentColor'); strokes.setAttribute('stroke-width', '2'); strokes.setAttribute('stroke-linecap', 'round');
+      cross.append(strokes); remove.append(cross);
       remove.addEventListener('mousedown', event => event.preventDefault());
       remove.addEventListener('click', () => {
         if (!editor.isEditable) return;

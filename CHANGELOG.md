@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.7.7
+
+- Evitar falsos conflitos ao sincronizar cadernos, reconhecer envios com resposta perdida e mesclar alterações em trechos diferentes sem gerar cópias extras.
+- Permitir comparar e escolher versões em conflitos reais, preservando rascunhos e alterações independentes.
+- Ignorar salvamentos sem mudança de conteúdo ao ler, selecionar, reler a publicação própria ou salvar os mesmos dados do caderno.
+- Centralizar o X das imagens, manter seu contraste ao passar o mouse e separar o alerta de sincronização do cabeçalho.
+
 ## 0.7.6
 
 - Atualizar texto e imagens na página compartilhada já aberta, enviar alterações durante digitação contínua e recuperar avisos perdidos por consulta de revisão.

@@ -27,6 +27,8 @@ As imagens de apresentação usam um perfil fictício, criado para ilustrar um r
 
 Organon é o nome do produto e do pacote. Os identificadores de instalação e os dados das versões anteriores são preservados por compatibilidade. [Identidade e migração dos repositórios](docs/IDENTIDADE-E-REPOSITORIOS.md).
 
+Para seguir a identidade do Organon neste ou em outros aplicativos, consulte a [referência visual e de experiência](docs/REFERENCIA-VISUAL-ORGANON.md): logos, cores, medidas, componentes, preferências, instalação e atualizações.
+
 ## Instalação
 
 Baixe e execute o instalador acima para adicionar o Organon ao menu Iniciar e à área de trabalho. O aplicativo verifica novas versões ao abrir e pergunta antes de baixar ou instalar uma atualização. Também é possível verificar manualmente nas preferências. Seus planos, histórico e anotações são mantidos na atualização.

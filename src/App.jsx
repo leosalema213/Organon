@@ -4,6 +4,7 @@ import { clock, completedPlanSummary, dailySummary, dayKey, dayPlan, days, durat
 import Tutorial from './Tutorial.jsx';
 import Notebook, { NotesPreview } from './Notebook.jsx';
 import Library from './Library.jsx';
+import { notebookEqual } from './shared-notebook-merge.js';
 import Books from './Books.jsx';
 import Anki from './Anki.jsx';
 import AnkiComposer from './AnkiComposer.jsx';
@@ -395,7 +396,7 @@ export default function App() {
         {page === 'teams' && <Teams key={account.status?.user?.id || 'offline'} api={business.api} user={account.status?.user} workspace={business.workspace} />}
         {page === 'kanban' && <Kanban key={(account.status?.user?.id || '') + (business.workspace?.id || '')} api={business.api} user={account.status?.user} workspace={business.workspace} />}
         {activePlugin && <PluginPage key={activePlugin.id + ':' + activePlugin.version + ':' + (account.status?.user?.id || '') + ':' + (business.workspace?.id || '')} id={activePlugin.id} api={business.api} user={account.status?.user} workspace={business.workspace} />}
-        {page === 'books' && <Library key={account.status?.user?.id || ''} business={business} user={account.status?.user} notebooks={data.notebooks || []} onChange={(change, saveNow) => { update(s => ({ ...s, notebooks: typeof change === 'function' ? change(s.notebooks || []) : change })); if (saveNow) return persist(dataRef.current); }} notify={setToast} saveError={saveError} Modal={Modal} Sketch={Sketch} />}
+        {page === 'books' && <Library key={account.status?.user?.id || ''} business={business} user={account.status?.user} notebooks={data.notebooks || []} onChange={(change, saveNow) => { update(s => { const notebooks = typeof change === 'function' ? change(s.notebooks || []) : change; return notebookEqual(s.notebooks || [], notebooks) ? s : { ...s, notebooks }; }); if (saveNow) return persist(dataRef.current); }} notify={setToast} saveError={saveError} Modal={Modal} Sketch={Sketch} />}
         {page === 'anki' && <Anki key={ankiPlan} noteEditorOpen={!!ankiRequest} onEditNote={note => setAnkiRequest({ key: crypto.randomUUID(), editor: note })} plans={data.plans} initialPlan={ankiPlan} collection={data.anki} onChange={change => update(s => ({ ...s, anki: typeof change === 'function' ? change(s.anki) : change }))} notify={setToast} saveError={saveError} Modal={Modal} />}
         {page === 'reading' && <Books key={`${account.status?.user?.id || ''}:${booksPlan}`} business={business} user={account.status?.user} onAnki={book => setAnkiRequest({ key: crypto.randomUUID(), book, context: book.orgId ? `shared-book:${book.orgId}:${book.id}` : `book:${book.id}` })} books={data.books || []} plans={data.plans} initialPlan={booksPlan} onChange={(change, saveNow) => { update(s => ({ ...s, books: typeof change === 'function' ? change(s.books || []) : change })); if (saveNow) return persist(dataRef.current); }} notify={setToast} saveError={saveError} Modal={Modal} />}
 

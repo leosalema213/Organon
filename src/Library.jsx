@@ -9,6 +9,7 @@ import PopupMenu from './PopupMenu.jsx';
 import ShareResources from './teams/ShareResources.jsx';
 import SharedNotebookReader from './SharedNotebookReader.jsx';
 import { useSharedNotebooks } from './shared-notebooks.js';
+import { notebookEqual } from './shared-notebook-merge.js';
 import { notebookLibrary, personalNotebookCopy, resourceShares, removeResourceShares } from './shared-resources.js';
 
 const NoteEditor = lazy(() => import('./NoteEditor.jsx'));
@@ -58,7 +59,8 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
       try {
         for (const copy of shared.notebooks.filter(item => item.id === value.id && item.publishedBy === user?.id)) {
           const opened = await business.api.call('teams', 'openResource', { orgId: copy.orgId, module: 'notebooks', resourceId: copy.id });
-          await business.api.call('teams', 'editResource', { orgId: copy.orgId, module: 'notebooks', resourceId: copy.id, revision: opened.revision, content: { ...opened.content, name: value.name, icon: value.icon, color: value.color, cover: value.cover } });
+          const content = { ...opened.content, name: value.name, icon: value.icon, color: value.color, cover: value.cover };
+          if (!notebookEqual(content, opened.content)) await business.api.call('teams', 'editResource', { orgId: copy.orgId, module: 'notebooks', resourceId: copy.id, revision: opened.revision, content });
         }
       } catch (error) { notify(`Não foi possível atualizar todos os compartilhamentos. Tente novamente. ${error.message}`); business.api.refresh(); return; }
       business.api.refresh();
@@ -96,14 +98,6 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
       if (mounted.current) notify('Cópia salva nos seus cadernos.');
     } catch (error) { if (mounted.current) notify(`Não foi possível baixar a cópia. ${error.message}`); }
     finally { working.current = false; if (mounted.current) setCopying(false); }
-  }
-  async function recoverDraft(content) {
-    try {
-      const copy = { ...personalNotebookCopy(content), id: newNotebook().id, name: `${content.name} (rascunho)`, pages: content.pages.map(page => ({ ...page, id: newPage().id })) };
-      if (await onChange(current => [...current, copy], true) === false) throw new Error('Não foi possível salvar a cópia.');
-      notify('Rascunho salvo nos seus cadernos.');
-      return true;
-    } catch (error) { notify(error.message); return false; }
   }
   function notebookMenu(value) {
     if (!value.orgId) return [
@@ -143,7 +137,7 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
     finally { working.current = false; if (mounted.current) { setDeletingBusy(false); business?.api.refresh(); } }
   }
   const sharedBook = book?.orgId ? book : book && shared.notebooks.find(item => item.id === book.id && item.publishedBy === user?.id);
-  if (sharedBook) return <SharedNotebookReader key={`${user?.id}:${sharedBook.orgId}:${sharedBook.id}`} userId={user.id} notebook={sharedBook} api={business.api} onClose={() => setBookId(null)} onCopy={() => saveCopy(sharedBook)} onRecover={recoverDraft} onSynced={sharedBook.publishedBy === user?.id ? content => onChange(current => current.map(item => item.id === content.id ? personalNotebookCopy(content) : item)) : undefined} copying={copying} notify={notify} Modal={Modal} Sketch={Sketch} Editor={Library} />;
+  if (sharedBook) return <SharedNotebookReader key={`${user?.id}:${sharedBook.orgId}:${sharedBook.id}`} userId={user.id} notebook={sharedBook} api={business.api} onClose={() => setBookId(null)} onCopy={() => saveCopy(sharedBook)} onSynced={sharedBook.publishedBy === user?.id ? content => onChange(current => current.map(item => item.id === content.id ? personalNotebookCopy(content) : item)) : undefined} copying={copying} notify={notify} Modal={Modal} Sketch={Sketch} Editor={Library} />;
   return <div className="journal-area">
     <div className="journal-heading">{book ? <><IconButton label="Todos os cadernos" onClick={onBack || (() => setBookId(null))}><ArrowLeft size={19} /></IconButton><BookCover book={book} small /><h1>{book.name}</h1>{headerMark}{!readOnly && <><IconButton label="Editar caderno" onClick={() => setDraft({ ...book })}><Pencil size={15} /></IconButton><button className="primary" onClick={addPage}><Plus size={16} />Nova página</button></>}{headerActions}</> : <><h1>Cadernos</h1><div className="button-row"><button className="primary" onClick={() => setDraft(newNotebook())}><Plus size={16} />Novo caderno</button>{business && <IconButton label="Compartilhar cadernos" disabled={!notebooks.length} onClick={() => share()}><Share2 size={15} /></IconButton>}</div></>}</div>
     {!book ? <>
