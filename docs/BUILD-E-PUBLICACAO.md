@@ -96,7 +96,8 @@ No repositório **leosalema213/Organon**:
    Confirme o primeiro build/publicação real depois do aceite do próximo preview.
    Em 10/11/2026, Actions foi confirmado habilitado e o ambiente `production` foi
    criado via API, restrito à branch `main`, sem revisores adicionais. O cadastro
-   do token específico e a primeira execução do workflow ainda estão pendentes.
+   do token específico e a primeira execução foram concluídos no mesmo dia;
+   consulte o resultado da publicação abaixo.
 
 O token fica somente no ambiente do job/processo Git, sem URL autenticada,
 argumento de terminal, arquivo de credenciais ou chave privada de plugins.
@@ -156,14 +157,41 @@ erros JavaScript, em perfil temporário. Checksums e alias Compasso foram gerado
 Retenção conferida: `0.7.8-preview.1` e `0.7.7`. Log completo em
 `.organon-build/2026-11-10T20-43-11-182Z-preview-15704.log`; recibo em
 `release/0.7.8-preview.1/build-report.json`. Os nove testes aprovados foram
-reaproveitados, sem nova suíte funcional. Validação do instalador pelo usuário e
-configuração/execução real do CI no GitHub continuam pendentes. Nenhum commit,
-push ou Release deste lote foi realizado até a entrega do preview.
+reaproveitados, sem nova suíte funcional. Na entrega do preview, a validação do
+instalador pelo usuário e a configuração/execução do CI ainda estavam pendentes;
+nenhum commit, push ou Release deste lote havia sido realizado naquele momento.
 
 O usuário aprovou explicitamente o preview e autorizou configurar a automação e
 publicar a final para testar o fluxo. `npm run version:final -- --approved-preview`
 promoveu pacote/lock/changelog para **0.7.8** e gerou `release-approval.json`, com
-as fontes e o SHA-256 do preview aprovado. A final será compilada pelo Actions;
-o instalador estável não foi entregue como teste. A autenticação Git local foi
-usada somente para administrar o ambiente; o secret do workflow deve receber
-um token fine-grained dedicado aos dois repositórios, com Contents/Workflows write.
+as fontes e o SHA-256 do preview aprovado. A final foi compilada pelo Actions;
+o instalador estável não foi entregue como teste. A autenticação Git local
+administrou o ambiente e enviou o commit; a publicação no CI usou o token
+fine-grained cadastrado pelo usuário, dedicado aos dois repositórios, com
+Contents/Workflows write.
+
+## Primeira publicação automática validada — 10/11/2026
+
+- Secret `ORGANON_RELEASE_TOKEN` cadastrado pelo usuário no ambiente `production`.
+  O push do commit `4684d4ec5ec7d88523342754bba635ef399449d1` à main iniciou
+  [a execução 42899475120](https://github.com/leosalema213/Organon/actions/runs/42899475120).
+- Gate e build concluídos com sucesso no GitHub, incluindo manifesto/ASAR,
+  abertura real em perfil temporário e checksums. O primeiro job de publicação
+  parou com 403 no push para `app-estudos`, antes de criar as Releases. O usuário
+  corrigiu as permissões do mesmo token; somente os jobs com falha foram retomados.
+  O instalador original foi reutilizado, sem recompilação, e a segunda tentativa
+  concluiu com sucesso.
+- `v0.7.8` pública em [Organon](https://github.com/leosalema213/Organon/releases/tag/v0.7.8)
+  e [app-estudos](https://github.com/leosalema213/app-estudos/releases/tag/v0.7.8),
+  ambas vinculadas ao commit aprovado. Instaladores Organon/Compasso idênticos
+  nos dois canais, com checksums públicos conferidos e catálogo assinado preservado.
+  SHA-256: `01c8a41d10c295857a2df3dc13ceb3e1819b6dd4628b9ee2cb62a9cc9d60fe94`.
+- AppUpdates consultou a rede real e ofereceu `0.7.8` tanto para `0.7.7` quanto
+  para `0.7.8-preview.1`, nos dois repositórios. O teste do workflow foi confirmado
+  por inspeção externa após sua conclusão. Logs completos em
+  `.organon-build/ci-42899475120-publish-success.log`; resumo local em
+  `.organon-build/publication-0.7.8.json`.
+- A publicação automática está ativa para próximas versões estáveis aprovadas;
+  o aceite do preview continua obrigatório. O token precisa continuar válido e
+  manter acesso aos dois repositórios. Este registro documental não altera as
+  fontes distribuídas e não exige outro preview, build ou suíte de testes.
