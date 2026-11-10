@@ -1,0 +1,109 @@
+name: Instalador e canais de atualização
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json, package-lock.json, release-approval.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: organon-production
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: github.repository == 'leosalema213/Organon' && github.ref == 'refs/heads/main'
+    runs-on: windows-2025
+    outputs:
+      publish: ${{ steps.gate.outputs.publish }}
+      version: ${{ steps.gate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: gate
+        run: node scripts/ci-release.cjs
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.publish == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build, ASAR, abertura isolada, checksums e retenção
+        run: npm run dist:stable
+      - name: Guardar os bytes originais para publicação e retomadas
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ github.run_id }}
+          path: |
+            release/${{ needs.gate.outputs.version }}/*.exe
+            release/${{ needs.gate.outputs.version }}/*.sha256
+            release/${{ needs.gate.outputs.version }}/build-report.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Logs completos do build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .organon-build/*.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+  publish:
+    needs: [gate, build]
+    runs-on: windows-2025
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-${{ github.run_id }}
+          path: release/${{ needs.gate.outputs.version }}
+      - name: Restaurar catálogo público assinado sem chave privada
+        run: node scripts/restore-plugin-catalog.cjs
+      - name: Confirmar a main e publicar os mesmos bytes nos dois canais
+        env:
+          GH_TOKEN: ${{ secrets.ORGANON_RELEASE_TOKEN }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          if (-not $env:GH_TOKEN) { throw 'Configure ORGANON_RELEASE_TOKEN no ambiente production.' }
+          git checkout -B main $env:RELEASE_COMMIT
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git fetch origin main
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run release -- --reuse-plugin-catalog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/ci-release.cjs channels
+      - name: Resumo
+        if: always()
+        env:
+          RELEASE_VERSION: ${{ needs.gate.outputs.version }}
+          RESULT: ${{ job.status }}
+        run: |
+          "Versão: $env:RELEASE_VERSION; publicação: $env:RESULT. Artefato: installer-${{ github.run_id }}. Logs completos nos jobs/artefatos desta execução." >> $env:GITHUB_STEP_SUMMARY

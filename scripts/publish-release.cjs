@@ -10,8 +10,18 @@ const { prepareRepositories, describeArtifacts, publishRepositoryRelease } = req
 const { isProductionVersion } = require('../electron/versions.cjs');
 const { pluginReleaseAssets } = require('./plugin-release-assets.cjs');
 const { downloadCatalog } = require('../electron/plugins.cjs');
+const { acquire } = require('./build-lock.cjs');
+const { approval, fingerprint } = require('./release-inputs.cjs');
 const root = path.resolve(__dirname, '..');
-function git(...args) { return cp.execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim(); }
+function git(...args) {
+  const env = { ...process.env };
+  // Cross-repository authentication stays in the child environment, never .git/config or argv.
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    env.GIT_CONFIG_COUNT = '1'; env.GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader';
+    env.GIT_CONFIG_VALUE_0 = 'AUTHORIZATION: basic ' + Buffer.from(`x-access-token:${token()}`).toString('base64');
+  }
+  return cp.execFileSync('git', args, { cwd: root, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+}
 function token() {
   if (process.env.GH_TOKEN || process.env.GITHUB_TOKEN) return process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   let credential;
@@ -21,8 +31,11 @@ function token() {
   if (!value) throw new Error('Nenhuma credencial do GitHub disponível.');
   return value;
 }
+let lock;
 (async () => {
+  lock = acquire(root);
   if (!isProductionVersion(version)) throw new Error('Publicação de produção exige MAJOR.MINOR.PATCH, PATCH de 0 a 9 e sem sufixo preview.');
+  approval(root, version);
   if (git('branch', '--show-current') !== 'main') throw new Error('A publicação deve partir da branch main aprovada.');
   if (git('status', '--porcelain')) throw new Error('Faça commit de todas as alterações antes de publicar.');
   const commit = git('rev-parse', 'HEAD');
@@ -33,6 +46,8 @@ function token() {
   const hash = crypto.createHash('sha256');
   for await (const chunk of fs.createReadStream(executable)) hash.update(chunk);
   const digest = hash.digest('hex');
+  const report = JSON.parse(fs.readFileSync(path.join(root, 'release', version, 'build-report.json'), 'utf8'));
+  if (report.complete !== true || report.version !== version || report.sourceSha256 !== fingerprint(root) || report.installerSha256 !== digest) throw new Error('O instalador precisa passar pelo fluxo completo de build/ASAR/abertura e corresponder às fontes atuais.');
   if (fs.readFileSync(checksum, 'utf8').split(/\s/)[0] !== digest) throw new Error('O checksum não corresponde ao instalador.');
   const artifacts = INSTALLER_NAMES.flatMap(name => { const file = path.join(root, 'release', version, name); return [file, file + '.sha256']; });
   for (const file of artifacts) if (!fs.existsSync(file)) throw new Error('Execute npm run checksums para gerar o instalador compatível com versões anteriores.');
@@ -66,4 +81,4 @@ function token() {
   const repositories = await prepareRepositories({ request, git });
   // Legacy first: installed versions get a working bridge even if the primary upload needs a retry.
   for (const repository of [...repositories].reverse()) await publishRepositoryRelease({ request, repository, version, commit, notes, artifacts: descriptors });
-})().catch(error => { console.error(error.message); process.exitCode = 1; });
+})().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(() => lock?.close());

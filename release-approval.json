@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "version": "0.7.8",
+  "preview": "0.7.8-preview.1",
+  "approved": true,
+  "approvedAt": "2026-11-10T20:48:54.900Z",
+  "sourceSha256": "a46df6f064a5d32d24991972cba163636869ef523f7d418dd1a526a416ac823c",
+  "installerSha256": "48bf9c3e5bb014aa610f5b5a6ce0dc090c479193e7ed6de07ac1c9c0549bc39c"
+}

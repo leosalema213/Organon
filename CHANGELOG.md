@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.7.8
+
+- Automatizar o preview com logs em arquivo, bloqueio de builds simultâneos, conferência integral do pacote, abertura isolada, checksums e retenção das duas últimas compilações.
+- Preparar publicação automática das versões estáveis aprovadas nos dois canais de atualização pelo GitHub Actions, vinculada ao aceite do preview.
+
 ## 0.7.7
 
 - Evitar falsos conflitos ao sincronizar cadernos, reconhecer envios com resposta perdida e mesclar alterações em trechos diferentes sem gerar cópias extras.

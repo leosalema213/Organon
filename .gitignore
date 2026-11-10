@@ -4,6 +4,7 @@ release/
 electron/vendor/
 public/spelling/
 test-output/
+.organon-build/
 *.lnk
 .env
 .env.*

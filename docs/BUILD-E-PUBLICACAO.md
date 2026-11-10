@@ -1,0 +1,169 @@
+# Build de preview e publicação automática
+
+## Uso diário
+
+Execute no PowerShell (inclusive em `C:\WINDOWS\system32`):
+
+```powershell
+npm --prefix 'C:\Users\leo_s\OneDrive\Documentos\ChatGPT\Pessoal\estudo-desktop' run preview
+```
+
+O comando consulta a última Release pública, avança pelo script oficial de versões
+(PATCH 0..9), compila o frontend e os recursos offline, usa o Electron local quando
+disponível, gera NSIS sem publicar, verifica todos os arquivos do manifesto no ASAR,
+abre o executável real em perfil temporário, gera SHA-256 e o alias Compasso e
+mantém somente a compilação atual e a anterior. Não usa o perfil pessoal nem
+executa suítes funcionais/E2E. Reaproveite os testes funcionais já aprovados.
+
+A saída contém uma linha por etapa e, ao terminar, versão, instalador e caminho do
+log. stdout/stderr completos ficam em `.organon-build/*.log`. Não é necessário
+consultar o processo a cada poucos segundos; acompanhe a mesma execução até sua
+conclusão, com esperas maiores e atualizações somente quando houver mudança.
+Rede/NSIS e a inspeção do executável precisam das permissões normais do Windows;
+falhas encerram o comando e preservam o log.
+
+Prompt curto reutilizável:
+
+> Gere o próximo preview com `npm run preview`. Reaproveite testes aprovados, não
+> publique. Acompanhe a execução sem consultas frequentes e entregue somente a
+> versão, o link do instalador e o resultado; em falha, informe a etapa e o log.
+
+## Falhas, concorrência e retomada
+
+- `npm run preview -- --resume` retoma apenas um preview **incompleto**, com a
+  mesma versão e as mesmas fontes. Recompila e revalida todas as etapas: não
+  confia em um ASAR/instalador parcial. Um preview concluído nunca é recompilado
+  com essa opção; `dist` também recusa sobrescrever uma compilação concluída.
+  Execute sem `--resume` para obter um identificador novo.
+- A reserva de versões em `.organon-build/previews.json` sobrevive à limpeza de
+  `release/`; não apague essa pasta para resolver falhas. Também são respeitados
+  os diretórios existentes e tags. Não compartilhe previews incompletos.
+- `build`, `dist`, `dist:portable`, `preview`, `dist:stable`, os comandos de versão
+  e a publicação compartilham `.organon-build/lock.json`. Não execute Vite,
+  electron-builder ou scripts internos diretamente em paralelo com eles.
+- Uma interrupção abrupta deixa o bloqueio para inspeção. Feche os processos de
+  build e seus descendentes antes de usar `npm run preview -- --resume --recover-lock`.
+  A recuperação recusa PIDs registrados ainda vivos. Não remova o lock manualmente
+  enquanto compiladores, empacotadores ou o executável de teste estiverem abertos.
+- Alteração nas fontes durante a compilação recusa a entrega. Documentação e
+  testes não entram no hash das fontes distribuídas; pacote/lock entram com
+  somente os campos da versão raiz neutralizados. Arquivos binários são
+  preservados byte a byte e finais de linha de textos são normalizados.
+
+## Aceite, promoção e gatilho de produção
+
+Ao finalizar ajustes e testes, pergunte se há mais pedidos. Depois do encerramento
+do lote, gere o preview. **Somente após o usuário validar esse preview e autorizar
+subir**, execute `npm run version:final -- --approved-preview`. A opção registra a
+declaração de aceite: não representa aprovação automática nem deve ser usada
+sem a autorização. O comando exige o recibo de build concluído e o SHA-256 do
+instalador aprovado, promove pacote/lock/changelog e grava `release-approval.json`.
+
+Inclua esse registro no commit aprovado e envie à main. Não é necessário gerar a
+final localmente: o GitHub fará isso. O workflow só é disparado por alterações em
+pacote/lock/registro; seu gate compara a versão anterior do push, recusa previews,
+fontes diferentes das aprovadas, versões fora da sequência e registros ausentes.
+A versão 0.7.7 já publicada não é republicada ao instalar esta automação.
+O registro é uma evidência de processo, não uma assinatura do usuário; proteja a
+main contra mudanças não aprovadas. A autorização de outro lote não é válida.
+
+O build Windows executa a mesma inspeção de ASAR e abertura isolada. Somente o job
+de publicação recebe o token; ele baixa os bytes originais guardados como artefato
+e publica primeiro no legado e depois no principal, com os mesmos instaladores,
+aliases, SHA-256 e catálogo assinado. Consulta então os dois canais públicos e
+exercita o AppUpdates real usando um preview da mesma base. Previews não entram
+no canal; a versão final continua sendo oferecida às instalações antigas e aos
+previews da mesma base. Nenhum commit de versão é criado pelo workflow.
+
+## Configuração única no GitHub
+
+No repositório **leosalema213/Organon**:
+
+1. Habilite Actions. Crie o ambiente `production` restrito à branch `main` e
+   configure as proteções de branch/PR conforme a aprovação do proprietário.
+   Revisores obrigatórios no ambiente são opcionais: acrescentam uma confirmação
+   no GitHub; sem eles, o commit com o registro aprovado é o gatilho automático.
+2. No ambiente, crie o secret **ORGANON_RELEASE_TOKEN**, um token fine-grained
+   limitado aos repositórios `Organon` e `app-estudos`, com **Contents: read/write**.
+   **Workflows: read/write** também é necessário para espelhar commits que alteram
+   `.github/workflows/` no legado. Metadata read é implícita. A conta precisa poder
+   enviar a main ao legado; não conceda bypass de proteção sem necessidade.
+   O `GITHUB_TOKEN` padrão tem somente Contents read e não publica no outro repo.
+3. Mantenha ambos os repositórios existentes, com a mesma visibilidade e histórico
+   compatível. Não faça push independente/divergente no legado. Lá o workflow é
+   ignorado pelo filtro de repositório; pode-se desabilitar Actions no legado.
+4. Antes da primeira promoção, execute os testes focados documentados abaixo.
+   Confirme o primeiro build/publicação real depois do aceite do próximo preview.
+   Em 10/11/2026, Actions foi confirmado habilitado e o ambiente `production` foi
+   criado via API, restrito à branch `main`, sem revisores adicionais. O cadastro
+   do token específico e a primeira execução do workflow ainda estão pendentes.
+
+O token fica somente no ambiente do job/processo Git, sem URL autenticada,
+argumento de terminal, arquivo de credenciais ou chave privada de plugins.
+O catálogo público é baixado, sua assinatura e os pacotes são validados e os bytes
+originais são reutilizados. Catálogo expirado, incompatível ou alteração nas fontes
+dos plugins bloqueia a publicação automática; nesse caso use primeiro o fluxo de
+assinatura de `docs/modulos/PLUGINS.md`. Não gere outra chave para contornar isso.
+
+## Recuperação de CI/CD
+
+Há uma única execução de produção por vez (`cancel-in-progress: false`), sem
+cancelar um upload em curso. Evite novos pushes à main enquanto a versão aprovada
+estiver sendo publicada: o publicador recusa HEAD diferente de origin/main.
+Não há gatilho por tag/Release, e o espelho não executa jobs de publicação.
+
+Após falha no build, use **Re-run failed jobs**. Após falha de upload ou de consulta
+do canal, reexecute **somente os jobs com falha**: o job publish reutiliza o
+artefato `installer-<run_id>` por até 30 dias e retoma drafts/assets idênticos.
+Não use Re-run all jobs para reconstruir um instalador parcialmente publicado:
+NSIS pode gerar bytes diferentes. Assets divergentes são recusados e nunca
+substituídos silenciosamente. A publicação legado primeiro deixa esse canal
+funcional mesmo se o principal falhar; a retomada completa o principal.
+
+`workflow_dispatch` na main permite iniciar uma versão aprovada cujo push não
+disparou o workflow. Não serve para substituir os bytes de uma publicação parcial
+nem para republicar versões públicas. Com artefatos expirados ou divergência de
+assets, investigue o estado dos drafts antes de qualquer alteração; nunca apague
+uma Release pública para refazer o build. Preserve o instalador original.
+
+Logs de build são artefatos separados e a publicação deixa os detalhes no log do
+job e um resumo curto na execução. Não é preciso copiar logs completos de sucesso
+para o chat. O fallback local continua disponível: após aprovação, `npm run
+dist:stable` e `npm run release -- --reuse-plugin-catalog`, sem competir com o CI.
+
+## Validação focada no terminal do usuário
+
+```powershell
+node --test 'C:\Users\leo_s\OneDrive\Documentos\ChatGPT\Pessoal\estudo-desktop\tests\release-automation.test.js' 'C:\Users\leo_s\OneDrive\Documentos\ChatGPT\Pessoal\estudo-desktop\tests\versions.test.js'
+```
+
+Esses testes verificam bloqueio/recuperação, identidade das fontes e o vínculo da
+aprovação com o preview, além dos gates de versão/repositório/publicação repetida,
+sem build, dados pessoais ou publicação. O primeiro uso
+de `preview` validará também empacotamento e abertura reais. Testes sintéticos não
+comprovam credenciais, proteções ou publicação no GitHub real.
+
+Resultado informado pelo usuário em 10/11/2026: **9 testes passaram, zero falhas**
+(`release-automation.test.js` e `versions.test.js`). Reaproveitar essa validação
+enquanto não houver mudança relevante. Avisos LF/CRLF ocorreram nas fixtures Git
+temporárias; mensagens sobre a versão 0.7.8 eram cenários sintéticos, sem publicação.
+Após o encerramento do lote pelo usuário, `npm run preview` gerou
+**0.7.8-preview.1** em 10/11/2026. A primeira tentativa falhou na consulta de rede,
+antes de alterar a versão; a execução com as permissões de rede/NSIS concluiu o
+fluxo completo. O ASAR teve 228 arquivos conferidos por tamanho e SHA-256; o
+executável real abriu Meu dia com conta ativada, sem falhas de carregamento nem
+erros JavaScript, em perfil temporário. Checksums e alias Compasso foram gerados.
+Retenção conferida: `0.7.8-preview.1` e `0.7.7`. Log completo em
+`.organon-build/2026-11-10T20-43-11-182Z-preview-15704.log`; recibo em
+`release/0.7.8-preview.1/build-report.json`. Os nove testes aprovados foram
+reaproveitados, sem nova suíte funcional. Validação do instalador pelo usuário e
+configuração/execução real do CI no GitHub continuam pendentes. Nenhum commit,
+push ou Release deste lote foi realizado até a entrega do preview.
+
+O usuário aprovou explicitamente o preview e autorizou configurar a automação e
+publicar a final para testar o fluxo. `npm run version:final -- --approved-preview`
+promoveu pacote/lock/changelog para **0.7.8** e gerou `release-approval.json`, com
+as fontes e o SHA-256 do preview aprovado. A final será compilada pelo Actions;
+o instalador estável não foi entregue como teste. A autenticação Git local foi
+usada somente para administrar o ambiente; o secret do workflow deve receber
+um token fine-grained dedicado aos dois repositórios, com Contents/Workflows write.

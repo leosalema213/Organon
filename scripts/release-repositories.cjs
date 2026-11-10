@@ -16,6 +16,12 @@ async function prepareRepositories({ request, git }) {
   const legacy = await request(api(LEGACY_REPOSITORY));
   if (!legacy.permissions?.push) throw new Error('Sem permissão para manter o canal legado.');
   let primary = await request(api(REPOSITORY), { allow404: true });
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    if (!primary?.permissions?.push || primary.private !== legacy.private) throw new Error('CI exige ambos os repositórios existentes e permissão de publicação.');
+    // main already arrived via the approved push. Mirror only this branch, never unrelated tags.
+    git('push', repositoryUrl(LEGACY_REPOSITORY), 'main:main');
+    return [REPOSITORY, LEGACY_REPOSITORY];
+  }
   if (!primary) {
     const user = await request('https://api.github.com/user');
     if (user.login.toLowerCase() !== legacy.owner.login.toLowerCase()) throw new Error('A criação do repositório exige a conta proprietária.');
