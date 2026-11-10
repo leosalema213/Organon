@@ -195,3 +195,17 @@ Contents/Workflows write.
   o aceite do preview continua obrigatório. O token precisa continuar válido e
   manter acesso aos dois repositórios. Este registro documental não altera as
   fontes distribuídas e não exige outro preview, build ou suíte de testes.
+
+## Ajuste da modal de atualização — preview 0.7.9-preview.1
+
+Em 10/11/2026, a pedido do usuário, removida a ação Depois quando a atualização
+está pronta. A modal de 480 px mantém as duas ações na mesma linha e permite
+fechar pelo X; agendamento, cancelamento e instalação preservam o fluxo existente.
+`npm run preview` concluiu em **62 segundos**, sem nova tentativa nem repetição de
+suítes funcionais: ASAR com 228 arquivos conferidos, abertura real em perfil
+temporário sem erros e checksums gerados. Retenção: `0.7.9-preview.1` e
+`0.7.8-preview.1`. Log em `.organon-build/2026-11-10T21-07-09-921Z-preview-17836.log`.
+O instalador está em `release/0.7.9-preview.1/Organon-Instalar.exe`. Após a entrega,
+o usuário aprovou o preview e autorizou publicar; a final **0.7.9** foi promovida
+com o registro de aprovação. O push do lote à main aciona o workflow existente,
+que gera o instalador estável e publica nos dois canais, sem novo build local.

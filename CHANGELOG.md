@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 0.7.9
+
+- Remover o botão Depois da atualização pronta e manter Instalar na próxima abertura e Atualizar e reiniciar na mesma linha, com modal de 480 px.
+
 ## 0.7.8
 
 - Automatizar o preview com logs em arquivo, bloqueio de builds simultâneos, conferência integral do pacote, abertura isolada, checksums e retenção das duas últimas compilações.

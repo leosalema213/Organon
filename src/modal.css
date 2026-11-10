@@ -2,6 +2,8 @@
 .modal-backdrop.modal-backdrop { z-index:40; }
 .modal.modal { --modal-body-space:14px; border-radius:12px; }
 .modal.modal.small { width:380px; }
+.modal.modal.update-ready { width:480px; }
+.modal.update-ready .modal-body .modal-actions { flex-wrap:nowrap; }
 .modal .modal-heading { flex:none; padding:12px 16px; align-items:center; border-radius:12px 12px 0 0; }
 .modal .modal-heading h2 { font-size:16px; letter-spacing:-.2px; }
 .modal .modal-heading p { margin-top:4px; font-size:12px; }

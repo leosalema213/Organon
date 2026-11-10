@@ -146,6 +146,8 @@ Em outro app, mostrar apenas as categorias que existirem. Preferências de tema 
 
 Fluxo: aviso de versão → **Depois** ou **Baixar atualização** → **Atualizar e reiniciar** ou **Instalar na próxima abertura**; permitir cancelar o agendamento. Download em segundo plano não bloqueia o uso. Salvar os dados antes de instalar. O backend deve verificar procedência e integridade; um popup parecido não constitui um atualizador completo. Previews não entram no canal de produção, e a final deve atualizar um preview com a mesma base.
 
+Após o download, a modal usa largura de 480 px e mantém **Instalar na próxima abertura** e **Atualizar e reiniciar** na mesma linha, sem botão Depois; o X permite fechar. No estado agendado, a ação secundária passa a **Cancelar agendamento**, mantendo os dois botões na mesma linha. Os demais estados preservam a largura compacta e suas ações.
+
 ## 9. Instalação, distribuição e preservação dos dados
 
 O Organon usa Electron + electron-builder + NSIS no Windows. “Electron” é o runtime; o assistente de instalação é NSIS. O padrão de experiência pode ser reproduzido em um app nativo ou Tauri sem transportar esse runtime.

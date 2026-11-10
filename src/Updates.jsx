@@ -57,11 +57,11 @@ export function UpdateDialog({ updates, onInstall, Modal }) {
   const scheduled = state.status === 'scheduled';
   const ready = state.status === 'ready' || scheduled;
   const busy = ['downloading', 'installing'].includes(state.status);
-  return <Modal title={state.status === 'installing' ? 'Atualizando o Organon' : scheduled ? 'Atualização agendada' : ready ? 'Pronto para atualizar' : 'Nova versão disponível'} subtitle={`Organon ${state.currentVersion} → ${state.version}`} onClose={dismiss} small>
+  return <Modal title={state.status === 'installing' ? 'Atualizando o Organon' : scheduled ? 'Atualização agendada' : ready ? 'Pronto para atualizar' : 'Nova versão disponível'} subtitle={`Organon ${state.currentVersion} → ${state.version}`} onClose={dismiss} small={!ready} className={ready ? 'update-ready' : ''}>
     <div className="update-body"><p>{state.message || (state.status === 'installing' ? 'Aplicando a atualização em segundo plano. O aplicativo será reaberto ao terminar.' : scheduled ? 'Você pode continuar usando o app. A atualização será instalada na próxima vez que abrir o Organon. Seus dados serão mantidos.' : ready ? 'Atualize agora ou deixe a instalação para a próxima abertura do Organon. Seus dados serão mantidos.' : busy ? 'Você pode continuar estudando enquanto o download termina.' : 'Deseja baixar e atualizar o aplicativo?')}</p>
       {busy && <><progress max="100" value={state.status === 'installing' ? undefined : state.percent || 0} /><span>{state.status === 'installing' ? 'Reiniciando…' : `${Math.round(state.percent || 0)}%`}</span></>}
       <div className="modal-actions">
-        {state.status !== 'installing' && <button className="secondary" onClick={dismiss}>{busy ? 'Continuar estudando' : scheduled ? 'Continuar usando' : 'Depois'}</button>}
+        {!ready && state.status !== 'installing' && <button className="secondary" onClick={dismiss}>{busy ? 'Continuar estudando' : 'Depois'}</button>}
         {!busy && ready && <button className="secondary" onClick={scheduled ? updates.cancelSchedule : updates.schedule}>{scheduled ? 'Cancelar agendamento' : 'Instalar na próxima abertura'}</button>}
         {!busy && <button className="primary" onClick={ready ? onInstall : updates.download}><Download size={15} />{ready ? 'Atualizar e reiniciar' : 'Baixar atualização'}</button>}
       </div>
