@@ -1,9 +1,17 @@
 let worker, sequence = 0, queue = Promise.resolve();
 let pending = 0;
 const waiting = new Map();
-export const waitForImages = () => queue.catch(() => {});
+export const waitForImages = async () => { let current; do { current = queue; await current.catch(() => {}); } while (current !== queue); };
 export const pendingImages = () => pending;
 const notifyPending = () => { window.desktop?.imagesPending?.(pending); window.dispatchEvent(new CustomEvent('organon:images', { detail: pending })); };
+// Register conversions performed by specialized editors in the same close/backup barrier.
+export function trackImageTask(task) {
+  pending++; notifyPending();
+  const tracked = Promise.resolve(task).finally(() => { pending--; notifyPending(); });
+  queue = Promise.allSettled([queue, tracked]);
+  tracked.catch(() => {});
+  return tracked;
+}
 export function optimizeImage(input) {
   pending++; notifyPending();
   const task = queue.catch(() => {}).then(async () => {

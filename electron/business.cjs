@@ -182,7 +182,7 @@ function createBusiness({ cloud, plugins, readData, books, emit = () => {}, crea
     if (input.module !== 'books') {
       function validateImages(value, field = '', depth = 0) {
         if (depth > 100) throw new Error('Caderno compartilhado muito complexo.');
-        if (['src', 'images', 'cover'].includes(field) && typeof value === 'string' && value.startsWith('data:image/')) {
+        if (['src', 'images', 'cover', 'dataURL'].includes(field) && typeof value === 'string' && value.startsWith('data:image/')) {
           const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
           if (!match || match[2].length > Math.ceil(IMAGE_LIMIT / 3) * 4) throw new Error('Imagem local inválida ou muito grande.');
           if (imageMime(Buffer.from(match[2], 'base64')) !== match[1]) throw new Error('O conteúdo não corresponde à imagem declarada.');

@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.8.0
+
+- Adicionar páginas exclusivas de quadro aos cadernos, com Excalidraw em português, imagens editáveis, desenhos, formas, textos, zoom e tela cheia.
+- Integrar os quadros ao salvamento automático, busca, backups, cópias pessoais e permissões de compartilhamento, com mesclagem de objetos para edição simultânea.
+- Empacotar as fontes do quadro para uso offline e unificar a saída da tela cheia por botão e Esc, preservando a instância do editor.
+- Fazer o caderno aberto ocupar a área disponível e reunir a criação em Nova → Página ou Tela de desenho, em menu pop-up.
+
 ## 0.7.9
 
 - Remover o botão Depois da atualização pronta e manter Instalar na próxima abertura e Atualizar e reiniciar na mesma linha, com modal de 480 px.

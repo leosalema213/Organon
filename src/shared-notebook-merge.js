@@ -1,4 +1,5 @@
 import { documentText, noteDocument } from './note-document.js';
+import { boardText, mergeBoards } from './board-data.js';
 
 // JSONB may reorder object keys. Only array order and actual values are significant.
 export function notebookEqual(a, b) {
@@ -29,6 +30,7 @@ export function mergeSharedNotebook(base, local, remote, choices = {}) {
   function merge(before, mine, theirs, field, path = []) {
     if (equal(mine, before)) return theirs;
     if (equal(theirs, before) || equal(mine, theirs)) return mine;
+    if (field === 'board' && mine && theirs) return mergeBoards(mine, theirs);
     if (field === 'pages') {
       const previous = new Map(before.map(page => [page.id, page]));
       const mineById = new Map(mine.map(page => [page.id, page]));
@@ -41,6 +43,11 @@ export function mergeSharedNotebook(base, local, remote, choices = {}) {
     if (before && mine && theirs && !Array.isArray(mine) && typeof mine === 'object' && typeof theirs === 'object') {
       // text/images are derived from the rich document, never merged independently.
       const richPage = field === 'page' && (before.document || mine.document || theirs.document);
+      if (field === 'page' && mine.kind === 'board' && theirs.kind === 'board') {
+        const board = merge(before.board, mine.board, theirs.board, 'board', [...path, 'board']);
+        const keys = [...new Set([...Object.keys(before), ...Object.keys(mine), ...Object.keys(theirs)])].filter(key => !['board', 'text', 'images'].includes(key));
+        return { ...Object.fromEntries(keys.map(key => [key, merge(before[key], mine[key], theirs[key], key, [...path, key])])), board, text: boardText(board), images: [] };
+      }
       if (richPage) {
         before = { ...before, document: noteDocument(before) };
         mine = { ...mine, document: noteDocument(mine) };

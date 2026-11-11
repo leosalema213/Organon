@@ -141,7 +141,7 @@ function extractResource(data, module, resourceId) {
   if (!source) throw new Error('Recurso local não encontrado.');
   const pick = (object, keys) => Object.fromEntries(keys.filter(key => Object.hasOwn(object, key)).map(key => [key, structuredClone(object[key])]));
   if (module === 'books') return pick(source, ['id', 'title', 'format', 'hash', 'size']);
-  return { ...pick(source, ['id', 'name', 'icon', 'color', 'cover']), pages: (source.pages || []).map(page => pick(page, ['id', 'title', 'date', 'text', 'images', 'document'])) };
+  return { ...pick(source, ['id', 'name', 'icon', 'color', 'cover']), pages: (source.pages || []).map(page => pick(page, ['id', 'title', 'date', 'text', 'images', 'document', 'kind', 'board'])) };
 }
 function createLocalAdapters({ cloud, readData, readBook, kanbanCatalog = async () => [] }) {
   return {
@@ -170,7 +170,7 @@ function createLocalAdapters({ cloud, readData, readBook, kanbanCatalog = async 
         return { bucket: 'organon-shared', object };
       }
       async function images(value, field = '') {
-        if (['src', 'images', 'cover'].includes(field) && typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value)) {
+        if (['src', 'images', 'cover', 'dataURL'].includes(field) && typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value)) {
           const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
           if (!match) throw new Error('Imagem local inválida.');
           return upload(Buffer.from(match[2], 'base64'), match[1]);

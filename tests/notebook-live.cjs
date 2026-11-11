@@ -1,5 +1,6 @@
 // Two real app windows, two synthetic identities and one local server. No real accounts.
 const { _electron: electron } = require('playwright');
+const { drawRectangle: rectangle, clickCanvas } = require('./board-gestures.cjs');
 const http = require('node:http'), fs = require('node:fs'), os = require('node:os'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..'), apps = [], profiles = [], errors = [];
 const owner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', guest = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', orgId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
@@ -77,7 +78,8 @@ let server;
   const title = page => page.getByRole('textbox', { name: 'Título da página', exact: true });
   const text = page => page.getByRole('textbox', { name: 'Texto da anotação', exact: true });
   const waitText = (page, expected) => page.waitForFunction(expected => document.querySelector('[aria-label="Texto da anotação"]')?.textContent.includes(expected), expected);
-  await author.getByRole('button', { name: 'Nova página', exact: true }).first().click();
+  await author.getByRole('button', { name: 'Nova', exact: true }).click();
+  await author.getByRole('menuitem', { name: 'Página', exact: true }).click();
   await title(author).fill('Página criada pelo autor');
   await text(author).fill('Texto inicial');
   await recipient.locator('.journal-page-row').filter({ hasText: 'Página criada pelo autor' }).getByRole('button').first().click();
@@ -116,10 +118,42 @@ let server;
   await text(recipient).fill('Recuperado mesmo sem aviso de tempo real');
   await waitText(author, 'Recuperado mesmo sem aviso de tempo real');
   state.dropEvents = false;
+  // The same notebook now contains a full-page canvas. Both identities draw at once.
+  await author.getByRole('button', { name: 'Nova', exact: true }).click();
+  await author.getByRole('menuitem', { name: 'Tela de desenho', exact: true }).click();
+  await author.locator('.notebook-board .excalidraw__canvas.interactive').waitFor();
+  await title(author).fill('Mapa do jogo');
+  await recipient.locator('.journal-page-row').filter({ hasText: 'Mapa do jogo' }).getByRole('button').first().click();
+  await recipient.locator('.notebook-board .excalidraw__canvas.interactive').waitFor();
+  const fingerprint = page => page.locator('.notebook-board canvas.static').evaluate(canvas => canvas.toDataURL());
+  async function waitPaint(page, previous) {
+    await page.waitForFunction(previous => {
+      const canvas = document.querySelector('.notebook-board canvas.static');
+      return canvas && canvas.toDataURL() !== previous;
+    }, previous);
+  }
+  const recipientBefore = await fingerprint(recipient);
+  await rectangle(author, 100, 170); await waitPaint(recipient, recipientBefore);
+  const authorBefore = await fingerprint(author);
+  await rectangle(recipient, 300, 170); await waitPaint(author, authorBefore);
+  await Promise.all([rectangle(author, 100, 260), rectangle(recipient, 300, 260)]);
+  const deadline = Date.now() + 20000;
+  while ((row.content.pages.find(page => page.kind === 'board')?.board.elements.filter(e => !e.isDeleted).length || 0) < 4 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(row.content.pages.find(page => page.kind === 'board').board.elements.filter(e => !e.isDeleted).length, 4, 'As quatro formas de ambos os editores devem sobreviver às revisões concorrentes');
+  await author.getByRole('button', { name: 'Tela cheia', exact: true }).click();
+  await author.waitForFunction(() => document.fullscreenElement?.classList.contains('notebook-board'));
+  await author.getByRole('button', { name: 'Sair da tela cheia', exact: true }).click();
+  await author.waitForFunction(() => !document.fullscreenElement);
   state.guestWrite = false; await invalidate();
   await recipient.waitForFunction(() => document.querySelector('input[aria-label="Título da página"]')?.disabled === true);
   assert(state.writes.includes(owner) && state.writes.includes(guest)); assert.deepEqual(errors, []);
-  console.log('Duas janelas na mesma versão: página, texto durante digitação, imagens, capa, título, autoria recente, recuperação de aviso perdido e permissão de leitura aprovados. Servidor local sintético; Supabase real pendente.');
+  assert.equal(await recipient.getByRole('button', { name: 'Nova', exact: true }).count(), 0);
+  const revision = row.revision;
+  const firstShape = row.content.pages.find(page => page.kind === 'board').board.elements.find(e => !e.isDeleted);
+  await clickCanvas(recipient, firstShape.x + 20, firstShape.y + 20);
+  await recipient.keyboard.press('Delete'); await new Promise(resolve => setTimeout(resolve, 1200));
+  assert.equal(row.revision, revision, 'Leitor não pode excluir objetos do quadro');
+  console.log('Duas janelas: texto, imagens, capas, autoria, reconexão, quadro simultâneo com quatro formas, tela cheia e leitura sem escrita aprovados. Servidor local sintético; Supabase real pendente.');
 })().catch(error => { console.error(error.stack || error); process.exitCode = 1; }).finally(async () => {
   await Promise.allSettled(apps.map(app => app.close()));
   if (server) await new Promise(resolve => server.close(resolve));

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, BookOpen, Check, Download, Ellipsis, FileText, ImagePlus, NotebookPen, Pencil, PenLine, Plus, Search, Share2, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Check, Download, Ellipsis, FileText, ImagePlus, NotebookPen, Pencil, PenLine, Plus, Search, Share2, SquarePen, Trash2, Users, X } from 'lucide-react';
 import { newNotebook, newPage, seed, validateData } from './model.js';
 import CoverPicker, { coverIcons } from './CoverPicker.jsx';
 import { customCoverStyle } from './book-appearance.js';
@@ -13,6 +13,10 @@ import { notebookEqual } from './shared-notebook-merge.js';
 import { notebookLibrary, personalNotebookCopy, resourceShares, removeResourceShares } from './shared-resources.js';
 
 const NoteEditor = lazy(() => import('./NoteEditor.jsx'));
+const NotebookBoard = lazy(() => {
+  window.EXCALIDRAW_ASSET_PATH = new URL('./excalidraw/', document.baseURI).href;
+  return import('./NotebookBoard.jsx');
+});
 function indexedTitle(page) { return page.title.trim() || documentHeadings(page.document).find(heading => heading.text.trim())?.text || ''; }
 function IconButton({ label, children, ...props }) { return <button type="button" className="icon-button" aria-label={label} title={label} {...props}>{children}</button>; }
 function BookCover({ book, small = false }) {
@@ -46,9 +50,9 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
   }
   function openBook(value) { setBookId(value.id); setPageId(value.pages[0]?.id || null); setQuery(''); }
   function selectPage(id) { setPageId(id); if (sheet.current) sheet.current.scrollTop = 0; }
-  function addPage() {
+  function addPage(kind = 'text') {
     if (readOnly) return;
-    const next = newPage();
+    const next = newPage(kind);
     onChange(current => current.map(item => item.id === book.id ? { ...item, pages: [...item.pages, next] } : item));
     setPageId(next.id); setQuery(''); if (sheet.current) sheet.current.scrollTop = 0;
   }
@@ -138,24 +142,24 @@ export default function Library({ notebooks, onChange, notify, saveError, Modal,
   }
   const sharedBook = book?.orgId ? book : book && shared.notebooks.find(item => item.id === book.id && item.publishedBy === user?.id);
   if (sharedBook) return <SharedNotebookReader key={`${user?.id}:${sharedBook.orgId}:${sharedBook.id}`} userId={user.id} notebook={sharedBook} api={business.api} onClose={() => setBookId(null)} onCopy={() => saveCopy(sharedBook)} onSynced={sharedBook.publishedBy === user?.id ? content => onChange(current => current.map(item => item.id === content.id ? personalNotebookCopy(content) : item)) : undefined} copying={copying} notify={notify} Modal={Modal} Sketch={Sketch} Editor={Library} />;
-  return <div className="journal-area">
-    <div className="journal-heading">{book ? <><IconButton label="Todos os cadernos" onClick={onBack || (() => setBookId(null))}><ArrowLeft size={19} /></IconButton><BookCover book={book} small /><h1>{book.name}</h1>{headerMark}{!readOnly && <><IconButton label="Editar caderno" onClick={() => setDraft({ ...book })}><Pencil size={15} /></IconButton><button className="primary" onClick={addPage}><Plus size={16} />Nova página</button></>}{headerActions}</> : <><h1>Cadernos</h1><div className="button-row"><button className="primary" onClick={() => setDraft(newNotebook())}><Plus size={16} />Novo caderno</button>{business && <IconButton label="Compartilhar cadernos" disabled={!notebooks.length} onClick={() => share()}><Share2 size={15} /></IconButton>}</div></>}</div>
+  return <div className={`journal-area${book ? ' journal-opened' : ''}`}>
+    <div className="journal-heading">{book ? <><IconButton label="Todos os cadernos" onClick={onBack || (() => setBookId(null))}><ArrowLeft size={19} /></IconButton><BookCover book={book} small /><h1>{book.name}</h1>{headerMark}{!readOnly && <><IconButton label="Editar caderno" onClick={() => setDraft({ ...book })}><Pencil size={15} /></IconButton><PopupMenu label="Nova" icon={Plus} items={[{ id: 'text', label: 'Página', icon: FileText, onSelect: () => addPage() }, { id: 'board', label: 'Tela de desenho', icon: SquarePen, onSelect: () => addPage('board') }]} /></>}{headerActions}</> : <><h1>Cadernos</h1><div className="button-row"><button className="primary" onClick={() => setDraft(newNotebook())}><Plus size={16} />Novo caderno</button>{business && <IconButton label="Compartilhar cadernos" disabled={!notebooks.length} onClick={() => share()}><Share2 size={15} /></IconButton>}</div></>}</div>
     {!book ? <>
       {shared.loading && <p role="status" className="muted">Buscando cadernos compartilhados…</p>}
       {shared.error && <p role="alert" className="form-error">Não foi possível consultar todos os espaços de cadernos compartilhados. <button className="secondary" onClick={shared.retry}>Tentar novamente</button></p>}
       {!library.length ? <div className="journal-empty"><NotebookPen size={34} strokeWidth={1.3} /><h2>Um lugar para suas ideias</h2><p>Diário, casa, pensamentos. Cada caderno, um espaço seu.</p><button className="secondary" onClick={() => setDraft(newNotebook())}><Plus size={15} />Criar caderno</button></div> : <div className="journal-grid">{library.map(({ notebook: value, orgIds }) => <article className="journal-card" key={value.id}><button className="journal-open" aria-label={`Abrir caderno ${value.name}`} onClick={() => openBook(value)}><BookCover book={value} /><div><h2>{value.name}</h2><small>{value.pages.length} {value.pages.length === 1 ? 'página' : 'páginas'}</small>{orgIds.size > 0 && <span className="journal-shared-mark" role="img" aria-label="Caderno compartilhado" title={`Compartilhado · ${business.spaces.filter(space => orgIds.has(space.id)).map(space => space.name).join(', ')}`}><Users size={14} /></span>}</div></button>{value.orgId ? <PopupMenu label={`Opções de ${value.name}`} icon={Ellipsis} iconOnly className="icon-button journal-options" items={notebookMenu(value)} /> : <IconButton label={`Editar caderno ${value.name}`} onClick={() => setDraft({ ...value })}><Pencil size={14} /></IconButton>}</article>)}</div>}
     </> : <div className="journal-layout">
       <aside className="journal-index" aria-label="Índice do caderno"><div className="journal-index-title"><span>PÁGINAS</span><span>{book.pages.length}</span></div><label className="notebook-search"><Search size={13} /><input aria-label="Buscar páginas" placeholder="Buscar páginas" value={query} onChange={event => setQuery(event.target.value)} /></label>
-        <div className="journal-pages">{filtered.map(value => <div className={`journal-page-row ${value.id === page?.id ? 'selected' : ''}`} key={value.id}><button aria-current={value.id === page?.id ? 'page' : undefined} onClick={() => selectPage(value.id)}><FileText size={14} /><span>{indexedTitle(value) || `Página ${book.pages.indexOf(value) + 1}`}</span></button>{!readOnly && <IconButton label={`Excluir página ${indexedTitle(value) || book.pages.indexOf(value) + 1}`} onClick={() => { setDeleteError(''); setDeleting({ kind: 'page', bookId: book.id, id: value.id, name: indexedTitle(value) || 'Sem título' }); }}><X size={12} /></IconButton>}</div>)}{!filtered.length && <p className="journal-no-results">{query ? 'Nenhuma página encontrada.' : 'Nenhuma página.'}</p>}</div>
+        <div className="journal-pages">{filtered.map(value => <div className={`journal-page-row ${value.id === page?.id ? 'selected' : ''}`} key={value.id}><button aria-current={value.id === page?.id ? 'page' : undefined} onClick={() => selectPage(value.id)}>{value.kind === 'board' ? <SquarePen size={14} /> : <FileText size={14} />}<span>{indexedTitle(value) || `${value.kind === 'board' ? 'Tela de desenho' : 'Página'} ${book.pages.indexOf(value) + 1}`}</span></button>{!readOnly && <IconButton label={`Excluir página ${indexedTitle(value) || book.pages.indexOf(value) + 1}`} onClick={() => { setDeleteError(''); setDeleting({ kind: 'page', bookId: book.id, id: value.id, name: indexedTitle(value) || 'Sem título' }); }}><X size={12} /></IconButton>}</div>)}{!filtered.length && <p className="journal-no-results">{query ? 'Nenhuma página encontrada.' : 'Nenhuma página.'}</p>}</div>
         {!!headings.length && <nav className="journal-outline" aria-label="Títulos desta página"><span>NESTA PÁGINA</span>{headings.map((heading, index) => <button key={index} style={{ paddingLeft: 8 + (heading.level - 1) * 10 }} onClick={() => editor.current?.goToHeading(index)}>{heading.text || 'Título sem texto'}</button>)}</nav>}
       </aside>
-      <section className="journal-document" aria-label="Página do caderno">{page ? <>
+      <section className="journal-document" aria-label="Página do caderno">{page?.kind === 'board' ? <Suspense fallback={<p className="muted" role="status">Abrindo tela de desenho…</p>}><NotebookBoard key={page.id} page={page} scope={`${book.orgId || (sharedView ? 'shared' : 'local')}:${book.id}`} onChange={changes => editPage(page.id, changes)} readOnly={readOnly} shared={sharedView} saveLabel={saveLabel} saveError={saveError} notify={notify} /></Suspense> : page ? <>
         <div className="journal-page-tools"><span className={saveError ? 'has-error' : ''}><Check size={12} />{saveError ? 'Falha ao salvar' : saveLabel || 'Salvo automaticamente'}</span>{!readOnly && <div><button className="notebook-tool" onClick={pickImage}><ImagePlus size={15} />Imagem</button><button className="notebook-tool" onClick={() => editor.current && setSketch({ editor: editor.current, token: editor.current.capture() })}><PenLine size={15} />Rabiscar</button></div>}</div>
         <div className="journal-sheet" ref={sheet}><div className="journal-paper"><time dateTime={page.date}>{new Date(`${page.date}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</time><input className="notebook-title" aria-label="Título da página" maxLength={160} placeholder="Sem título" value={page.title} disabled={readOnly} onChange={event => editPage(page.id, { title: event.target.value })} />
           <Suspense fallback={<p className="muted">Abrindo página…</p>}><NoteEditor key={`${page.id}:${readOnly}`} note={page} ref={editor} rich disabled={readOnly} syncExternal={sharedView} onChange={changes => editPage(page.id, changes)} notify={notify} /></Suspense>
         </div></div>
         <input ref={file} type="file" accept="image/png,image/jpeg,image/webp" hidden multiple onCancel={() => { const value = insertion.current; if (value) value.editor.cancel(value.token); insertion.current = null; }} onChange={event => { const value = insertion.current; if (value) value.editor.images([...event.target.files], value.token); insertion.current = null; event.target.value = ''; }} />
-      </> : <div className="journal-empty"><FileText size={28} /><p>{readOnly ? 'Nenhuma página neste caderno.' : 'Comece uma nova página.'}</p>{!readOnly && <button className="secondary" onClick={addPage}><Plus size={15} />Nova página</button>}</div>}</section>
+      </> : <div className="journal-empty"><FileText size={28} /><p>{readOnly ? 'Nenhuma página neste caderno.' : 'Use Nova para adicionar uma página ou tela de desenho.'}</p></div>}</section>
     </div>}
     {draft && <Modal title={notebooks.some(item => item.id === draft.id) ? 'Editar caderno' : 'Novo caderno'} onClose={() => setDraft(null)} small className="journal-book-modal" actions={business && <IconButton label="Compartilhar caderno" disabled={loadingCover || !draft.name.trim()} onClick={event => saveBook(event, true)}><Share2 size={14} /></IconButton>}><form className="journal-book-form" onSubmit={saveBook}>
       <BookCover book={draft} /><label>Nome<input autoFocus required maxLength={80} aria-label="Nome do caderno" placeholder="Meu diário" value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>

@@ -1,6 +1,6 @@
 {
   "name": "organon",
-  "version": "0.7.9",
+  "version": "0.8.0",
   "private": true,
   "description": "Seu ritmo de estudo, um bloco de cada vez.",
   "author": "Organon",
@@ -22,6 +22,7 @@
     "test:cloud": "node tests/cloud-ui.cjs",
     "test:notebook": "node tests/notebook.cjs",
     "test:library": "node tests/library.cjs",
+    "test:boards": "node tests/notebook-boards-check.cjs",
     "test:books": "node tests/books.cjs",
     "test:book-thumbnails": "node tests/book-thumbnails.cjs",
     "test:ebooks": "node tests/ebooks.cjs",
@@ -43,6 +44,7 @@
     "version:final": "node scripts/version.cjs final"
   },
   "devDependencies": {
+    "@excalidraw/excalidraw": "0.18.0",
     "@supabase/supabase-js": "2.105.3",
     "@tiptap/core": "^3.32.0",
     "@tiptap/extension-bold": "^3.32.0",

@@ -149,6 +149,21 @@ test('corrupt book chunk cannot be installed into the local cache', async t => {
   assert.equal(fs.existsSync(h.books.file(hash)), false);
 });
 
+test('imagens de quadros usam Storage privado, validação de bytes e rechecagem de acesso', async t => {
+  const h = harness(t), business = h.create();
+  const bytes = Buffer.from('89504e470d0a1a0a01020304', 'hex');
+  h.data = { notebooks: [{ id: RESOURCE, name: 'Quadro', pages: [{ id: BOARD, kind: 'board', board: { version: 1, elements: [], files: { image: { id: 'image', mimeType: 'image/png', created: 1, dataURL: 'data:image/png;base64,' + bytes.toString('base64') } } } }] }] };
+  await business.dispatch('teams', 'publish', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE, revision: 0 });
+  const stored = h.server.resource.content.pages[0].board.files.image;
+  assert.equal(stored.dataURL.bucket, 'organon-shared'); assert.equal(stored.mimeType, 'image/png');
+  const opened = await business.dispatch('teams', 'openResource', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE });
+  assert.equal(opened.content.pages[0].board.files.image.dataURL, 'data:image/png;base64,' + bytes.toString('base64'));
+  h.data.notebooks[0].pages[0].board.files.image.dataURL = 'data:image/png;base64,YQ==';
+  await assert.rejects(business.dispatch('teams', 'publish', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE, revision: 1 }), /imagem|corresponde/);
+  h.server.permission = false;
+  await assert.rejects(business.dispatch('teams', 'openResource', { orgId: ORG, module: 'notebooks', resourceId: RESOURCE }), /acesso|permissão|encontrado/i);
+});
+
 test('opening a notebook resolves only scoped private images and rechecks authorization', async t => {
   const h = harness(t), business = h.create(), bytes = Buffer.from('89504e470d0a1a0a01020304', 'hex');
   const object = `${ORG}/notebooks/${RESOURCE}/${digest(bytes)}`;

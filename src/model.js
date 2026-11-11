@@ -1,4 +1,5 @@
 import { isNoteImage, validNoteDocument } from './note-document.js';
+import { emptyBoard, validBoard } from './board-data.js';
 import { isNotebookColor, notebookIcons } from './book-appearance.js';
 import { calendarDate, reminderSounds, validReminders } from './reminders.js';
 import { validKind, validKinds } from './block-kinds.js';
@@ -26,7 +27,7 @@ export const recordKey = (date, planId, blockId) => `${date}|${planId}|${blockId
 export function newBlock(type = 'lesson') { return { id: uid(), type, name: type === 'break' ? 'Pausa para respirar' : 'Nova aula', minutes: type === 'break' ? 5 : 25 }; }
 export function newPlan() { return { id: uid(), name: '', description: '', color: 'violet', icon: 'sparkles', completedAt: null, days: [1, 2, 3, 4, 5], blocks: [newBlock(), newBlock('break'), newBlock()], notes: [] }; }
 export { notebookIcons } from './book-appearance.js';
-export function newPage() { return { id: uid(), title: '', date: dayKey(), text: '', images: [] }; }
+export function newPage(kind = 'text') { return { id: uid(), title: '', date: dayKey(), text: '', images: [], ...(kind === 'board' ? { kind, board: emptyBoard() } : {}) }; }
 export function newNotebook() { return { id: uid(), name: '', icon: 'book', color: 'violet', cover: null, pages: [newPage()] }; }
 export function seed() {
   return { version: 1, plans: [], notebooks: [], books: [], anki: emptyAnki(), reminders: [], blockKinds: [], records: {}, active: null, settings: preferences(), onboardingCompleted: false, createdAt: dayKey() };
@@ -230,6 +231,7 @@ export function validateData(data) {
     ids.add(book.id);
     for (const page of book.pages) {
       if (!page?.id || ids.has(page.id) || typeof page.title !== 'string' || typeof page.date !== 'string' || typeof page.text !== 'string' || !Array.isArray(page.images) || page.images.some(image => !isNoteImage(image)) || (page.document !== undefined && !validNoteDocument(page.document))) throw new Error('Página inválida no backup.');
+      if ((page.kind !== undefined && !['text', 'board'].includes(page.kind)) || (page.kind === 'board' ? !validBoard(page.board) || page.document !== undefined : page.board !== undefined)) throw new Error('Quadro inválido no backup.');
       ids.add(page.id);
     }
   }

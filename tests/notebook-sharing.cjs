@@ -151,7 +151,7 @@ let app;
   assert.equal(await card('Recebido').count(), 1);
   await card('Editável').getByRole('button', { name: 'Abrir caderno Editável', exact: true }).click();
   await page.getByRole('button', { name: 'Editar caderno', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Nova página', exact: true }).first().waitFor();
+  await page.getByRole('button', { name: 'Nova', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Salvar alterações', exact: true }).count(), 0);
   const writesBeforeReading = await app.evaluate(() => globalThis.notebookSharing.calls.filter(call => call.action === 'editResource').length);
   const body = page.getByRole('textbox', { name: 'Texto da anotação', exact: true });

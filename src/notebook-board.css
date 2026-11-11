@@ -1,0 +1,15 @@
+.notebook-board { display:flex;flex:1;flex-direction:column;min-width:0;min-height:0;background:var(--journal-panel);color:var(--journal-text); }
+.notebook-board:fullscreen { width:100vw;height:100vh;--journal-panel:#fff;--journal-text:#41414b;--journal-line:#e9e9ee;--journal-muted:#8c8c98; }
+[data-theme="dark"] .notebook-board:fullscreen { --journal-panel:#191919;--journal-text:#ddd;--journal-line:#ffffff10;--journal-muted:#939393; }
+.notebook-board-heading { display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid var(--journal-line); }
+.notebook-board-heading>input { flex:1;min-width:100px;width:120px;background:transparent;color:inherit;border-color:transparent;font-weight:600; }
+.notebook-board-heading>span { font-size:10px;color:var(--journal-muted); }
+.notebook-board-heading .has-error { color:#c97474; }
+.notebook-board-error { padding:8px 12px;font-size:12px; }
+.notebook-board-canvas { flex:1;position:relative;min-width:0;min-height:0; }
+.notebook-board-canvas>.excalidraw { position:absolute;inset:0;--default-font:'Segoe UI',Arial,sans-serif;--color-primary:#7460d8;--color-primary-darker:#6652c6;--color-primary-light:#f0edf9; }
+.notebook-board .excalidraw.theme--dark { --island-bg-color:#202020;--popup-bg-color:#202020;--color-surface-low:#191919;--color-surface-mid:#292929;--color-surface-high:#333;--color-primary:#c3b4e5;--color-primary-light:#37323e;--color-primary-darker:#d1c6e9; }
+/* These are editor controls, with Excalidraw's own geometry rather than form defaults. */
+.notebook-board .excalidraw :is(input,select) { min-height:unset;box-shadow:none; }
+.notebook-board .excalidraw .App-menu_top { flex-wrap:wrap; }
+@media(max-width:1000px) { .notebook-board-heading>span { flex-basis:100%;order:3; } }
