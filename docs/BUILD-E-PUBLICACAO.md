@@ -1,5 +1,13 @@
 # Build de preview e publicação automática
 
+## Publicação 0.8.0 conferida — 11/11/2026
+
+- Após aceite explícito de `0.8.0-preview.2`, promoção oficial com `release-approval.json` e push do commit `b1623f1cd754ae9727e3fd05cb4d04c1242e659d` à main.
+- [Execução 43026443606](https://github.com/leosalema213/Organon/actions/runs/43026443606) concluída com gate, build e publicação aprovados. Instalador estável gerado no CI com ASAR, abertura isolada e checksums; nenhum publicador local concorrente.
+- `v0.8.0` pública em [Organon](https://github.com/leosalema213/Organon/releases/tag/v0.8.0) e [app-estudos](https://github.com/leosalema213/app-estudos/releases/tag/v0.8.0). Ambas as tags apontam ao commit aprovado. Os quatro assets de instalação (Organon/Compasso nos dois canais) têm 139939470 bytes e o mesmo SHA-256 `696002cde2840787ea8c17e9f7908921279e588d5b2ef2722893691e612e94b9`, conferido contra o digest do GitHub e os checksums públicos.
+- Consulta independente com o AppUpdates real confirmou a oferta de `0.8.0` para `0.7.9` e `0.8.0-preview.2` nos dois repositórios. Relatório local ignorado: `.organon-build/publication-0.8.0.json`; andamento do CI em `.organon-build/publication-0.8.0-status.json`.
+- Os testes locais aprovados foram reaproveitados. Esta publicação não aplica o SQL de compatibilidade nem comprova a colaboração com contas Supabase reais; essas pendências permanecem registradas no contrato de dados.
+
 ## Uso diário
 
 Execute no PowerShell (inclusive em `C:\WINDOWS\system32`):
