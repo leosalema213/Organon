@@ -1,5 +1,12 @@
 # Build de preview e publicação automática
 
+## Publicação 0.8.1 conferida — 11/11/2026
+
+- Preview `0.8.1-preview.1` validado pelo usuário e promoção/publicação explicitamente autorizadas. Commit aprovado `41028473a87f7903473e54e7653bbd33b5ef182f`, com `release-approval.json`, enviado à main.
+- [CI 43128888738](https://github.com/leosalema213/Organon/actions/runs/43128888738) concluiu gate, build e publicação com sucesso. Final gerada pelo CI com ASAR, abertura isolada e checksums, sem publicador local concorrente.
+- Release `v0.8.1` pública em [Organon](https://github.com/leosalema213/Organon/releases/tag/v0.8.1) e [app-estudos](https://github.com/leosalema213/app-estudos/releases/tag/v0.8.1). Tags apontam ao commit aprovado; instaladores Organon/Compasso nos dois canais têm 139939426 bytes e SHA-256 `65c4e17aff7701eea7219d19f0833841d2e8b592ad0f7831c87915fc619c9e8d`, conferido contra digests e checksums públicos.
+- AppUpdates real confirmou oferta de `0.8.1` para `0.8.0` e `0.8.1-preview.1` nos dois repositórios. Relatórios locais ignorados: `.organon-build/publication-0.8.1.json` e `.organon-build/publication-0.8.1-status.json`. Resultados funcionais aprovados reaproveitados; dados pessoais preservados e nenhuma alteração remota de banco.
+
 ## Correção da digitação no quadro — 0.8.1-preview.1
 
 - Lote encerrado pelo usuário em 11/11/2026, com pedido de preview e publicação. Cinco testes do provedor ortográfico e cenário isolado com dois retângulos, flecha, texto gradual com acentos, gravação e reabertura aprovados no terminal do usuário; sugestão/substituição real em português também conferida pelo agente. Resultados reaproveitados.
