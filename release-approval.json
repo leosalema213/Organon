@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "version": "0.8.0",
-  "preview": "0.8.0-preview.2",
+  "version": "0.8.1",
+  "preview": "0.8.1-preview.1",
   "approved": true,
-  "approvedAt": "2026-11-11T13:06:53.227Z",
-  "sourceSha256": "84353b1fc5ea7e084aa7ea53df759a81f558790dbb99c0a2c7e739d111d4bd57",
-  "installerSha256": "a2fe681fecbc94d7562795f048ec7005d7d17bb9bf700c0b4e6de7392fc7d741"
+  "approvedAt": "2026-11-12T00:38:28.792Z",
+  "sourceSha256": "754d875147618a0a6d125439be2d315de59b9fb3766f55878b7a15a466470fcd",
+  "installerSha256": "853ea57de6a873dd211f7a3c1e04cabab08e39eec35e8ef78b287e0853328fe4"
 }

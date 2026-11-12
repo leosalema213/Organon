@@ -1,11 +1,23 @@
 const { contextBridge, ipcRenderer } = require('electron');
 if (process.platform === 'win32') {
   const { webFrame } = require('electron');
-  const enableSpelling = () => webFrame.setSpellCheckProvider('pt-BR', { spellCheck(words, callback) {
-    const groups = [];
-    for (let index = 0; index < words.length; index += 256) groups.push(ipcRenderer.invoke('spelling:check', words.slice(index, index + 256)));
-    Promise.all(groups).then(values => { try { callback(values.flat()); } catch {} }, () => { try { callback([]); } catch {} });
-  } });
+  let spellingRequest = 0;
+  const enableSpelling = () => {
+    spellingRequest++;
+    webFrame.setSpellCheckProvider('pt-BR', { spellCheck(words, callback) {
+      const request = ++spellingRequest;
+      const complete = values => {
+        // Electron keeps only the latest native text-check request. Completing
+        // an older async check can consume the new request, then crash on its reply.
+        if (request !== spellingRequest) return;
+        spellingRequest++;
+        try { callback(values); } catch {}
+      };
+      const groups = [];
+      for (let index = 0; index < words.length; index += 256) groups.push(ipcRenderer.invoke('spelling:check', words.slice(index, index + 256)));
+      Promise.all(groups).then(values => complete(values.flat()), () => complete([]));
+    } });
+  };
   window.addEventListener('DOMContentLoaded', enableSpelling, { once: true });
   // Chromium may replace its text-check client while initializing the document.
   // Restore the provider when a user enters an editable field, before typing.

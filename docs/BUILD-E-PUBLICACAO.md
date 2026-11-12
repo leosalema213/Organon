@@ -1,5 +1,11 @@
 # Build de preview e publicação automática
 
+## Correção da digitação no quadro — 0.8.1-preview.1
+
+- Lote encerrado pelo usuário em 11/11/2026, com pedido de preview e publicação. Cinco testes do provedor ortográfico e cenário isolado com dois retângulos, flecha, texto gradual com acentos, gravação e reabertura aprovados no terminal do usuário; sugestão/substituição real em português também conferida pelo agente. Resultados reaproveitados.
+- `npm run preview` concluiu `0.8.1-preview.1`: 577 arquivos do ASAR verificados por tamanho/SHA-256, executável real aberto em perfil temporário com conta ativada e sem erros de carregamento/JavaScript, checksums e retenção das duas compilações locais concluídos. Log `.organon-build/2026-11-12T00-35-02-944Z-preview-23436.log`; recibo em `release/0.8.1-preview.1/build-report.json`.
+- Instalador com SHA-256 `853ea57de6a873dd211f7a3c1e04cabab08e39eec35e8ef78b287e0853328fe4`. Mantidos `0.8.1-preview.1` e `0.8.0-preview.2`. Preview validado pelo usuário, com autorização explícita para subir. Promoção oficial para `0.8.1` concluída com `release-approval.json`, vinculando fontes e instalador aprovados. Commit/push preparados para o CI gerar a final e publicar os mesmos bytes nos dois canais; sem publicador local concorrente.
+
 ## Publicação 0.8.0 conferida — 11/11/2026
 
 - Após aceite explícito de `0.8.0-preview.2`, promoção oficial com `release-approval.json` e push do commit `b1623f1cd754ae9727e3fd05cb4d04c1242e659d` à main.

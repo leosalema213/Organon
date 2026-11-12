@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 0.8.1
+
+- Corrigir a queda da interface ao digitar na tela de desenho, descartando respostas antigas do corretor ortográfico e preservando as sugestões em português.
+
 ## 0.8.0
 
 - Adicionar páginas exclusivas de quadro aos cadernos, com Excalidraw em português, imagens editáveis, desenhos, formas, textos, zoom e tela cheia.
