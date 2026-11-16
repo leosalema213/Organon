@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Plus, Layers, Copy, Upload, Pencil, Settings, Play, ChevronRight, RotateCcw, Pause, Trash2 } from 'lucide-react';
 import { answer, afterDays, cardCreatedAt, cardCreatedOn, basicModel, clozeModel, counts, dayStart, defaultOptions, emptyAnki, mergeAnki, newCard, optionsFor, queue, removeDeck, reversedModel, schedule, validAnki } from './anki.js';
 import CardFace from './AnkiCard.jsx';
@@ -29,6 +29,12 @@ export default function Anki({ collection, onChange, notify, Modal, saveError, p
   const visibleDecks = a.decks.filter(d => !planFilter || d.planIds?.includes(planFilter));
   const remaining = deck ? queue(a, deckId, now) : [], note = a.notes.find(n => n.id === card?.noteId), model = a.models.find(m => m.id === note?.modelId);
   function showCard(c) { clearTimeout(transition.current); setLeaving(false); setSession(c?.id || null); setBack(false); setTyped(''); setAudioDone(false); started.current = Date.now(); revealed.current = null; lock.current = false; }
+  useLayoutEffect(() => {
+    if (tab === 'decks' && deck && session && !card && !editor) {
+      setUndo(null);
+      showCard(queue(a, deckId)[0]);
+    }
+  }, [a, tab, deck, deckId, session, card, editor]);
   function reveal() { setBack(true); setAudioDone(false); revealed.current = Date.now(); }
   function grade(rating) {
     if (!card || !back || lock.current) return; lock.current = true;
@@ -122,14 +128,28 @@ export function AnkiNoteEditor({ a, editor, Modal, notify, onClose, onSave, init
     onSave(next, isNew ? { id: crypto.randomUUID(), modelId: model.id, fields: model.fields.map(() => ''), tags: [], deckId, isNew: true } : null);
     if (isNew) notify(ords.length === 1 ? 'Carta criada.' : 'Cartas criadas.');
   }
-  return <Modal title={draft.isNew ? 'Criar carta' : 'Editar nota'} wide onClose={reason => { if (!working) onClose(reason, snapshot()); }}><form className="anki-editor" onSubmit={save}><div className="anki-form-grid"><label>Baralho<select aria-label="Baralho" required disabled={working} value={a.decks.some(d => d.id === draft.deckId) ? draft.deckId : ''} onChange={e => setDraft({ ...draft, deckId: e.target.value })}><option value="" disabled>Selecione um baralho</option>{a.decks.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label><label>Tipo de nota<select aria-label="Tipo de nota" disabled={working || !draft.isNew} value={draft.modelId} onChange={e => { const m = models.find(m => m.id === e.target.value); setModel(structuredClone(m)); setDraft({ ...draft, modelId: m.id, fields: m.fields.map((_, i) => draft.fields[i] || '') }); }}>{models.map(m => <option key={m.id} value={m.id}>{modelLabel(m.name)}</option>)}</select></label></div>
+  return <><Modal title={draft.isNew ? 'Criar carta' : 'Editar nota'} wide onClose={reason => { if (!working) onClose(reason, snapshot()); }}><form className="anki-editor" onSubmit={save}><div className="anki-form-grid"><label>Baralho<select aria-label="Baralho" required disabled={working} value={a.decks.some(d => d.id === draft.deckId) ? draft.deckId : ''} onChange={e => setDraft({ ...draft, deckId: e.target.value })}><option value="" disabled>Selecione um baralho</option>{a.decks.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label><label>Tipo de nota<select aria-label="Tipo de nota" disabled={working || !draft.isNew} value={draft.modelId} onChange={e => { const m = models.find(m => m.id === e.target.value); setModel(structuredClone(m)); setDraft({ ...draft, modelId: m.id, fields: m.fields.map((_, i) => draft.fields[i] || '') }); }}>{models.map(m => <option key={m.id} value={m.id}>{modelLabel(m.name)}</option>)}</select></label></div>
       {onCreateDeck && <button type="button" className="secondary" disabled={working} onClick={() => onCreateDeck(snapshot())}><Plus size={15} />Criar baralho</button>}
       {model.fields.map((name, index) => <div className="anki-field" key={`${draft.modelId}-${index}`}><span className="anki-field-label">{fieldLabel(name)}</span><AnkiField ref={el => { refs.current[index] = el; }} identity={`${draft.id}-${draft.modelId}-${index}`} autoFocus={!!draft.isNew && index === 0} label={fieldLabel(name)} value={draft.fields[index] || ''} disabled={working} onChange={html => setDraft(s => ({ ...s, fields: s.fields.map((v, i) => i === index ? html : v) }))} onFiles={files => insert(files, index)} loadImage={async name => { let key = name; try { key = decodeURIComponent(name); } catch {} const meta = media.current[key]; return meta?.mime.startsWith('image/') ? { bytes: await window.desktop.anki.readMedia(meta), mime: meta.mime } : null; }} /><span className="anki-field-help">Arraste áudio ou imagem aqui <input aria-label={`Adicionar mídia a ${fieldLabel(name)}`} type="file" multiple accept="audio/*,image/png,image/jpeg,image/webp,image/gif" disabled={working || !window.desktop?.anki} onChange={e => { insert([...e.target.files], index); e.target.value = ''; }} /></span></div>)}
       <label>Marcadores<input value={tags} onChange={e => setTags(e.target.value)} placeholder="Separadas por espaço" /></label><div className="anki-actions"><button type="button" onClick={() => setPreview(!preview)}>Prévia</button></div>
       {preview && <CardFace a={{ ...a, notes: [draft], models: [model], media: media.current }} card={{ noteId: draft.id, id: draft.id, ord: 0 }} back preview typed="" autoplay={false} />}
-      <div className="modal-actions">{draft.isNew && <button className="secondary" disabled={working} type="button" onClick={clear}>Limpar</button>}<button className="primary" disabled={working} type="submit">{working ? 'Copiando mídia…' : draft.isNew ? 'Criar carta' : 'Salvar nota'}</button>{!draft.isNew && <button type="button" onClick={() => setDeleting(true)}><Trash2 size={16} />Excluir nota e suas cartas</button>}</div>
-      {deleting && <div role="alert"><p>Excluir esta nota e todas as cartas dela? O histórico de respostas será preservado.</p><button type="button" onClick={() => onSave({ ...a, notes: a.notes.filter(n => n.id !== draft.id), cards: a.cards.filter(c => c.noteId !== draft.id) })}>Confirmar exclusão</button><button type="button" onClick={() => setDeleting(false)}>Cancelar</button></div>}
-    </form></Modal>;
+      <div className="modal-actions">
+        {draft.isNew ? <button className="secondary" disabled={working} type="button" onClick={clear}>Limpar</button> : <button className="danger-button" disabled={working} type="button" onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" />Excluir nota e suas cartas</button>}
+        <button className="primary" disabled={working} type="submit">{working ? 'Copiando mídia…' : draft.isNew ? 'Criar carta' : 'Salvar nota'}</button>
+      </div>
+    </form></Modal>
+    {deleting && <Modal title="Excluir nota?" small onClose={() => setDeleting(false)}>
+      <p>Esta nota e todas as suas cartas serão excluídas. O histórico de respostas será preservado.</p>
+      <div className="modal-actions">
+        <button className="secondary" type="button" onClick={() => setDeleting(false)}>Cancelar</button>
+        <button className="danger-button" type="button" onClick={() => onSave(current => ({
+          ...current,
+          notes: current.notes.filter(note => note.id !== draft.id),
+          cards: current.cards.filter(card => card.noteId !== draft.id),
+        }))}>Excluir nota</button>
+      </div>
+    </Modal>}
+  </>;
 }
 
 export function AnkiDeckEditor({ a, initial, plans = [], Modal, notify, onClose, onSave }) {

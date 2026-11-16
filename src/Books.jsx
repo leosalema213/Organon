@@ -177,7 +177,7 @@ export default function Books({ books, plans, onChange, notify, Modal, saveError
       <p className="confirm-text">“{deleting.title}” {deleting.orgId ? 'será retirado dos espaços onde você publicou.' : user ? 'sairá da sua biblioteca, dos planos e do progresso. Suas publicações também serão retiradas dos espaços.' : 'sairá da sua biblioteca, dos planos e do progresso. Entre na conta para retirar publicações dos espaços.'}</p>
       {user && <p>Quem já salvou uma cópia pessoal mantém o livro.</p>}
       {deleteError && <p role="alert" className="form-error">{deleteError}</p>}
-      <div className="modal-actions"><button className="secondary" disabled={deletingBusy} onClick={() => setDeleting(null)}>Cancelar</button><button className="primary" disabled={deletingBusy} onClick={deleteBook}>{deletingBusy ? 'Excluindo…' : deleting.orgId ? 'Excluir compartilhamento' : 'Excluir livro'}</button></div>
+      <div className="modal-actions"><button className="secondary" disabled={deletingBusy} onClick={() => setDeleting(null)}>Cancelar</button><button className="danger-button" disabled={deletingBusy} onClick={deleteBook}>{deletingBusy ? 'Excluindo…' : deleting.orgId ? 'Excluir compartilhamento' : 'Excluir livro'}</button></div>
     </Modal>}
   </>;
 }

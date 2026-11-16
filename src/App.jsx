@@ -307,7 +307,7 @@ export default function App() {
     update(s => ({ ...s, plans: [...s.plans, copy] })); setToast('Plano duplicado com uma nova sequência e caderno vazio.');
   }
   function deletePlan(plan) {
-    setConfirm({ title: 'Excluir este plano?', text: `O plano “${plan.name}” e suas anotações serão removidos. As horas registradas serão mantidas no histórico.`, action: () => update(s => ({ ...pause(s), active: s.active?.planId === plan.id ? null : pause(s).active, plans: s.plans.filter(p => p.id !== plan.id) })) });
+    setConfirm({ title: 'Excluir este plano?', destructive: true, text: `O plano “${plan.name}” e suas anotações serão removidos. As horas registradas serão mantidas no histórico.`, action: () => update(s => ({ ...pause(s), active: s.active?.planId === plan.id ? null : pause(s).active, plans: s.plans.filter(p => p.id !== plan.id) })) });
   }
   async function backup() {
     try {
@@ -414,7 +414,7 @@ export default function App() {
     {account.open && <AccountDialog account={account} Modal={Modal} />}
     {!account.open && account.conflictOpen && <SyncConflictDialog account={account} Modal={Modal} />}
     <PluginUpdateDialog plugins={business.plugins} hidden={account.open || account.conflictOpen || appUpdates.open || settings || !!tutorial} />
-    {confirm && <Modal title={confirm.title} onClose={() => { confirm.cancel?.(); setConfirm(null); }} small><p className="confirm-text">{confirm.text}</p><div className="modal-actions"><button className="secondary" onClick={() => { confirm.cancel?.(); setConfirm(null); }}>Cancelar</button><button className="primary" onClick={() => { confirm.action(); setConfirm(null); }}>Confirmar</button></div></Modal>}
+    {confirm && <Modal title={confirm.title} onClose={() => { confirm.cancel?.(); setConfirm(null); }} small><p className="confirm-text">{confirm.text}</p><div className="modal-actions"><button className="secondary" onClick={() => { confirm.cancel?.(); setConfirm(null); }}>Cancelar</button><button className={confirm.destructive ? 'danger-button' : 'primary'} onClick={() => { confirm.action(); setConfirm(null); }}>{confirm.destructive ? 'Excluir plano' : 'Confirmar'}</button></div></Modal>}
     {appUpdates.open && <UpdateDialog updates={appUpdates} onInstall={installUpdate} Modal={Modal} />}
     {linkingAnkiPlan && data.plans.some(p => p.id === linkingAnkiPlan) && <AnkiPlanLinks a={data.anki} plan={data.plans.find(p => p.id === linkingAnkiPlan)} Modal={Modal} onClose={() => setLinkingAnkiPlan(null)} onSave={anki => { update(s => ({ ...s, anki })); setLinkingAnkiPlan(null); }} />}
     {reminderAlarms.length > 0 && <Modal title="Lembrete" className="reminder-editor-modal" onClose={() => setReminderAlarms(alarms => alarms.slice(1))}><div role="alert"><h3>{reminderAlarms[0].title}</h3><p className="reminder-alarm-description">{reminderAlarms[0].description}</p>{reminderAlarms[0].singleUse && <p className="reminders-hint">Lembrete de uso único excluído após disparar.</p>}<div className="modal-actions"><button className="primary" onClick={() => setReminderAlarms(alarms => alarms.slice(1))}>Dispensar{reminderAlarms.length > 1 ? ` (${reminderAlarms.length} avisos)` : ''}</button></div></div></Modal>}

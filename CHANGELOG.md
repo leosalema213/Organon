@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.8.2
+
+- Confirmar a exclusão de notas do Anki em um modal separado e continuar a revisão na próxima carta disponível, preservando o histórico.
+- Padronizar botões de exclusão e o alinhamento de ícones nos modais. Confirmar a exclusão em lote de notificações preservando os convites pendentes.
+
 ## 0.8.1
 
 - Corrigir a queda da interface ao digitar na tela de desenho, descartando respostas antigas do corretor ortográfico e preservando as sugestões em português.

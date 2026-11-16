@@ -16,7 +16,7 @@ export default function Modal({ title, subtitle, onClose, children, small, wide,
       if (e.key === 'Tab') {
         const items = [...ref.current.querySelectorAll('button:not(:disabled), input, textarea, select, [tabindex="0"], [contenteditable="true"]')].filter(el => el.offsetParent !== null);
         const first = items[0], last = items[items.length - 1];
-        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === ref.current)) { e.preventDefault(); last?.focus(); }
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
     };

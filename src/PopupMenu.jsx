@@ -22,6 +22,7 @@ export default function PopupMenu({ label, icon: Icon, items = [], className = '
     return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('focusin', outside); window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
   }, [open]);
   function keydown(e) {
+    if (e.target.closest('.modal-backdrop')) return;
     e.stopPropagation();
     if (e.key === 'Escape') { e.preventDefault(); close(true); }
     else if (children) return;

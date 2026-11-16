@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Bell, RefreshCw, Trash2, X } from 'lucide-react';
+import Modal from '../Modal.jsx';
 import PopupMenu from '../PopupMenu.jsx';
 import { MODULE_LABELS } from './Permissions.jsx';
 import './notifications.css';
@@ -17,6 +18,12 @@ function Inbox({ api, close, onOpenShared }) {
   const [data, setData] = useState({ notifications: [], invitations: [], unreadCount: 0 });
   const [tab, setTab] = useState('notifications'), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [error, setError] = useState(''), [confirmAll, setConfirmAll] = useState(false);
   const epoch = useRef(0), alive = useRef(true), working = useRef(false);
+  const tabs = useRef(null);
+  useLayoutEffect(() => {
+    if (!confirmAll && document.activeElement === document.body) {
+      tabs.current?.querySelector('button[aria-pressed="true"]')?.focus();
+    }
+  }, [data, busy, confirmAll]);
   const refresh = useCallback(async () => {
     const stamp = ++epoch.current;
     try { const next = await api.call('teams', 'inbox'); if (alive.current && stamp === epoch.current) { setData(next); setError(''); } }
@@ -36,14 +43,24 @@ function Inbox({ api, close, onOpenShared }) {
     catch (error) { if (alive.current) setError(error.message); }
     finally { working.current = false; if (alive.current) setBusy(false); }
   }
+  function closeConfirmation() {
+    if (!working.current) { setConfirmAll(false); setError(''); }
+  }
   return <section className="notification-inbox" aria-busy={busy || loading}>
     <header><h2>Notificações</h2><div className="button-row"><button type="button" className="icon-button" title="Atualizar notificações" aria-label="Atualizar notificações" disabled={busy} onClick={refresh}><RefreshCw size={15} /></button><button type="button" className="icon-button" title="Fechar notificações" aria-label="Fechar notificações" onClick={close}><X size={16} /></button></div></header>
-    <div className="tabs" role="group" aria-label="Tipo de aviso"><button type="button" aria-pressed={tab === 'notifications'} className={tab === 'notifications' ? 'selected' : ''} onClick={() => { setTab('notifications'); setConfirmAll(false); }}>Notificações</button><button type="button" aria-pressed={tab === 'invitations'} className={tab === 'invitations' ? 'selected' : ''} onClick={() => { setTab('invitations'); setConfirmAll(false); }}>Convites ({data.invitations.length})</button></div>
-    {error && <p role="alert" className="form-error">{error}</p>}
+    <div ref={tabs} className="tabs" role="group" aria-label="Tipo de aviso"><button type="button" aria-pressed={tab === 'notifications'} className={tab === 'notifications' ? 'selected' : ''} onClick={() => { setTab('notifications'); setConfirmAll(false); }}>Notificações</button><button type="button" aria-pressed={tab === 'invitations'} className={tab === 'invitations' ? 'selected' : ''} onClick={() => { setTab('invitations'); setConfirmAll(false); }}>Convites ({data.invitations.length})</button></div>
+    {error && !confirmAll && <p role="alert" className="form-error">{error}</p>}
     {loading && <p role="status">Carregando…</p>}
     {tab === 'notifications' ? <>
-      <div className="notification-actions"><button type="button" disabled={busy || !data.unreadCount} onClick={() => run('readAll')}>Marcar todas como lidas</button><button type="button" disabled={busy || !data.notifications.length} onClick={() => setConfirmAll(true)}>Excluir todas</button></div>
-      {confirmAll && <div className="notification-confirm"><p>Excluir todas as notificações? Os convites pendentes continuam disponíveis na aba Convites.</p><div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={() => setConfirmAll(false)}>Cancelar</button><button type="button" className="secondary" disabled={busy} onClick={() => run('deleteAllNotices')}>Confirmar exclusão</button></div></div>}
+      <div className="notification-actions"><button type="button" disabled={busy || !data.unreadCount} onClick={() => run('readAll')}>Marcar todas como lidas</button><button className="danger-button" type="button" disabled={busy || !data.notifications.length} onClick={() => { setError(''); setConfirmAll(true); }}>Excluir todas</button></div>
+      {confirmAll && <Modal title="Excluir todas as notificações?" small onClose={closeConfirmation}>
+        <p>Os convites pendentes continuam disponíveis na aba Convites.</p>
+        {error && <p role="alert" className="form-error">{error}</p>}
+        <div className="modal-actions">
+          <button type="button" className="secondary" disabled={busy} onClick={closeConfirmation}>Cancelar</button>
+          <button type="button" className="danger-button" disabled={busy} onClick={() => run('deleteAllNotices')}>{busy ? 'Excluindo…' : 'Excluir todas'}</button>
+        </div>
+      </Modal>}
       {!loading && !data.notifications.length && <p className="muted">Nenhuma notificação.</p>}
       {data.notifications.map(n => <article key={n.id} className={`notification-item${n.read_at ? '' : ' unread'}`}><div><strong>{n.org_name}</strong><p>{labels[n.kind] || 'Atualização da equipe'}</p>{onOpenShared && ['shared_books','shared_notebooks','permissions','accepted'].includes(n.kind) && <div className="button-row">{['books','notebooks'].filter(module => n.kind === `shared_${module}` || (['permissions','accepted'].includes(n.kind) && n.grants?.[module]?.mode && n.grants[module].mode !== 'none')).map(module => <button type="button" key={module} onClick={() => { onOpenShared(n.org_id,module); close(); }}>{module === 'books' ? 'Ver livros' : 'Ver cadernos'}</button>)}</div>}<time dateTime={n.created_at}>{new Date(n.created_at).toLocaleString('pt-BR')}</time>{!n.read_at && <button type="button" disabled={busy} onClick={() => run('read', { id: n.id })}>Marcar como lida</button>}</div><button type="button" className="icon-button" aria-label={`Excluir notificação de ${n.org_name}`} title="Excluir notificação" disabled={busy} onClick={() => run('deleteNotice', { id: n.id })}><Trash2 size={15} /></button></article>)}
     </> : <>

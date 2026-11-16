@@ -49,6 +49,12 @@ input:where(:not([type=checkbox],[type=radio],[type=range],[type=color],[type=fi
   height:var(--control-icon-size);
   flex:none;
 }
+.danger-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:7px; font-weight:600; white-space:nowrap; }
+/* The signed MEI package uses the host's primary button in its delete dialog. */
+.danger-button,
+.mei-page > .modal-backdrop > .modal[aria-label="Confirmar exclusão"] .modal-actions > .primary { background:#af555b; color:#fff; box-shadow:0 3px 6px #af555b1a; }
+.danger-button:hover,
+.mei-page > .modal-backdrop > .modal[aria-label="Confirmar exclusão"] .modal-actions > .primary:hover { background:#98434a; color:#fff; }
 .stats-grid { gap:12px;margin-bottom:var(--section-gap); }
 .stat-card { padding:var(--stats-padding);min-height:var(--stats-height);position:relative; }
 .stat-label { font-size:9px;letter-spacing:.7px; }
